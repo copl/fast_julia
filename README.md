@@ -1,1 +1,1 @@
-# fast_julia
+# Julia impementation of the homogenous algorithm
