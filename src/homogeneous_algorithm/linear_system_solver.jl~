@@ -22,7 +22,7 @@ function ls_solve!(my_factor, my_rhs, my_sol , my_settings::class_settings)
 		if my_settings.linear_system_solver in [:solver_MUMPS_LU, :solver_MUMPS_LDL]
 			applyMUMPS!(my_factor, my_rhs, my_sol);
 		elseif my_settings.linear_system_solver == :solver_julia
-			my_sol[1:length(my_sol)] = my_factor \ my_rhs;
+			my_sol[1:length(my_sol)] = my_factor \ rhs;
 		else
 			error("Symbol: `", my_settings.linear_system_solver, "' does not correspond to an implemented linear equation solver. Check the settings.")
 		end

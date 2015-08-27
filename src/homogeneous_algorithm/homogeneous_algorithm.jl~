@@ -6,10 +6,10 @@ function include_print(filename)
 	println("loaded ", filename)
 end
 
-include_print("homogeneous_settings.jl")
-include_print("linear_system_solver.jl")
-include_print("homogeneous_core.jl")
-include_print("testing_tools.jl")
+include("homogeneous_settings.jl")
+include("linear_system_solver.jl")
+include("homogeneous_core.jl")
+include("testing_tools.jl")
 
 function display_progress(itr::Int64, alpha::Float64, gamma::Float64, residuals::class_residuals, vars::class_variables, settings)
 	try
