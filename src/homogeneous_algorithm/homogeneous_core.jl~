@@ -246,7 +246,7 @@ type class_newton_solver
 
 				rhs[1:(qp.n)] = eta * r_D + xs ./ x;
 				rhs[(qp.n + 1):(qp.m + qp.n)] = eta * r_P;
-				ls_solve!(this.K_factor,rhs,p);
+				ls_solve!(this.K_factor, rhs, p, settings);
 
 				v_tmp = [g' + x'/tau * qp.H qp.b'];
 				numerator_dtau = eta*r_G + 1/tau * tk + (v_tmp * p)[1];

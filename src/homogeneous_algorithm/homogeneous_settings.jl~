@@ -37,7 +37,7 @@ type class_settings
 
 		# algorithm parameters
 		this.diagonal_modification = 1e-8;
-		this.linear_system_solver = linear_solver_MUMPS();
+		this.linear_system_solver = linear_solver_mumps();
 
 		return this
 	end

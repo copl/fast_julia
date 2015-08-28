@@ -1,15 +1,18 @@
+# to do:
 # check primal & dual termination criteron
 
-
-function include_print(filename)
+function include_print(filename::String)
 	include(filename)
 	println("loaded ", filename)
 end
 
-include("homogeneous_settings.jl")
-include("linear_system_solver.jl")
-include("homogeneous_core.jl")
-include("testing_tools.jl")
+
+include_print("homogeneous_settings.jl")
+include_print("linear_system_solvers.jl")
+include_print("homogeneous_core.jl")
+include_print("testing_tools.jl")
+
+println("starting code ...")
 
 function display_progress(itr::Int64, alpha::Float64, gamma::Float64, residuals::class_residuals, vars::class_variables, settings)
 	try
@@ -132,7 +135,6 @@ function homogeneous_algorithm(qp::class_quadratic_program, vars::class_variable
 		println("Line search = ", mytimer.show_percent(mytimer.ls),"%")
 		println("Residual computation = ", mytimer.show_percent(mytimer.res),"%")
 		println("Display time = ", mytimer.show_percent(mytimer.disp),"%")
-		println("factor time = ",newton_solver.factor_time)
 	catch e
 		println("alpha = ", alpha)
 		println("ERROR in homogeneous_algorithm")
