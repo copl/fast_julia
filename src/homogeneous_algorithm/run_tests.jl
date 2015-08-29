@@ -9,6 +9,7 @@ println("Solving ", file_name, " with the homogeneous algorithm")
 settings = class_settings();
 
 
+
 println("=================== Linear system solver is julia LU factor =============")
 settings.linear_system_solver = linear_solver_julia();
 lp_test_homogeneous_algorithm(A, b, c, settings);

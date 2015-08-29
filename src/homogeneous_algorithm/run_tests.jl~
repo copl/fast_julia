@@ -9,6 +9,7 @@ println("Solving ", file_name, " with the homogeneous algorithm")
 settings = class_settings();
 
 if false
+
 println("=================== Linear system solver is julia LU factor =============")
 settings.linear_system_solver = linear_solver_julia();
 lp_test_homogeneous_algorithm(A, b, c, settings);
@@ -17,6 +18,7 @@ println("=================== Linear system solver is MUMPS LU ==================
 settings.linear_system_solver = linear_solver_MUMPS();
 settings.linear_system_solver.sym = 0;
 lp_test_homogeneous_algorithm(A, b, c, settings);
+end
 
 println("=================== Linear system solver is MUMPS LDL ===================")
 settings.linear_system_solver = linear_solver_MUMPS();

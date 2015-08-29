@@ -8,8 +8,8 @@ end
 
 
 include_print("homogeneous_settings.jl")
-include_print("linear_system_solvers.jl")
 include_print("homogeneous_core.jl")
+include_print("linear_system_solvers.jl")
 include_print("testing_tools.jl")
 println("starting code ...")
 

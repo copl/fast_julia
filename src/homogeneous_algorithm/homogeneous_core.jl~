@@ -182,44 +182,38 @@ end
 
 
 type class_newton_solver
-	K::SparseMatrixCSC{Float64,Int64}
-	K_factor #::MUMPSfactorization{Float64}
+	#K::SparseMatrixCSC{Float64,Int64}
+	#K_factor
 	direction::class_variables
 	
 	update_system::Function
 	compute_direction::Function
 
-	factor_time::Float64
-
 	function class_newton_solver(qp::class_quadratic_program,settings::class_settings)
 		this = new();
 		
-		this.K = [[qp.H qp.A']; [qp.A -settings.diagonal_modification*speye(qp.m,qp.m)]];
+		linear_system_solver = settings.linear_system_solver;
+		linear_system_solver.initialize(qp, settings);
+		
 		this.direction = class_variables(qp.n,qp.m);
-
 		rhs = zeros(qp.n + qp.m);
 		h = zeros(qp.n + qp.m);
 		p = zeros(qp.n + qp.m);
 
-		this.factor_time = 0.0;
-
 		function compute_h_vector(vars::class_variables)
-			rhs[1:(qp.n)] = qp.g(vars) - qp.H * vars.x()/vars.tau();
-			rhs[(qp.n + 1):(qp.m + qp.n)] = -qp.b;
-			ls_solve!(this.K_factor, rhs, h, settings);
+			try
+				rhs[1:(qp.n)] = qp.g(vars) - qp.H * vars.x()/vars.tau();
+				rhs[(qp.n + 1):(qp.m + qp.n)] = -qp.b;
+				linear_system_solver.ls_solve!(rhs, h, settings);
+			catch e
+				println("ERROR in class_newton_solver.compute_h_vector")
+				throw(e)
+			end
 		end
 
 		this.update_system = function(vars::class_variables)
 			try
-				x = vars.x()
-				s = vars.s()
-
-				for i = 1:(qp.n)
-					this.K[i,i] = qp.H[i,i] + s[i]/x[i];
-				end
-			
-				this.K_factor = ls_factor(this.K, settings)
-
+				linear_system_solver.ls_factor(vars);
 				compute_h_vector(vars)
 			catch e
 				println("ERROR in class_newton_solver.update_system")
@@ -246,7 +240,8 @@ type class_newton_solver
 
 				rhs[1:(qp.n)] = eta * r_D + xs ./ x;
 				rhs[(qp.n + 1):(qp.m + qp.n)] = eta * r_P;
-				ls_solve!(this.K_factor, rhs, p, settings);
+				#ls_solve!(this.K_factor, rhs, p, settings);
+				linear_system_solver.ls_solve!(rhs, p, settings);
 
 				v_tmp = [g' + x'/tau * qp.H qp.b'];
 				numerator_dtau = eta*r_G + 1/tau * tk + (v_tmp * p)[1];
