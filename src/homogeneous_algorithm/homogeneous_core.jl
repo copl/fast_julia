@@ -5,18 +5,30 @@
 type class_quadratic_program
 	n::Int64 # number of variables
 	m::Int64 # number of constraints
-	H::SparseMatrixCSC{Float64,Int64}
+	_H::SparseMatrixCSC{Float64,Int64}
 	c::Array{Float64,1}
 	A::SparseMatrixCSC{Float64,Int64}
 	b::Array{Float64,1}
-	
+
+	a::Function	
 	g::Function
+	H::Function
+	
+	delta::Float64 # regularization
 
 	function class_quadratic_program()
 		this = new();
 		
+		this.a = function(vars::class_variables)
+			return this.A*vars.x() - this.b;
+		end
+
 		this.g = function(vars::class_variables)
-			return this.c + 2 * this.H * vars.x()/vars.tau()
+			return this.c + this.H(vars) * vars.x()/vars.tau()
+		end
+	
+		this.H = function(vars::class_variables)
+			return this._H + this.delta * speye(length(vars.x()));
 		end
 
 		return this;	
@@ -27,7 +39,7 @@ type class_quadratic_program
 
 		(this.m, this.n) = size(A)
 		this.A = A;
-		this.H = spzeros(this.n,this.n)
+		this._H = spzeros(this.n,this.n)
 		this.c = c;
 		this.b = b;
 
@@ -114,7 +126,7 @@ end
 
 function validate_dimensions(qp::class_quadratic_program,vars::class_variables)
 	try
-		@assert(size(qp.H) == (qp.n,qp.n))
+		@assert(size(qp.H(vars)) == (qp.n,qp.n))
 		@assert(size(qp.A) == (qp.m,qp.n))
 		@assert(size(qp.b) == (qp.m,))
 		@assert(size(qp.c) == (qp.n,))
@@ -202,9 +214,12 @@ type class_newton_solver
 
 		function compute_h_vector(vars::class_variables)
 			try
-				rhs[1:(qp.n)] = qp.g(vars) - qp.H * vars.x()/vars.tau();
+				rhs[1:(qp.n)] = qp.g(vars) - qp.H(vars) * vars.x()/vars.tau();
 				rhs[(qp.n + 1):(qp.m + qp.n)] = -qp.b;
+
+				GLOBAL_timer.start("Solve")
 				linear_system_solver.ls_solve!(rhs, h, settings);
+				GLOBAL_timer.stop("Solve")
 			catch e
 				println("ERROR in class_newton_solver.compute_h_vector")
 				throw(e)
@@ -213,8 +228,14 @@ type class_newton_solver
 
 		this.update_system = function(vars::class_variables)
 			try
+				GLOBAL_timer.start("Factor")
 				linear_system_solver.ls_factor(vars, qp);
+				GLOBAL_timer.stop("Factor")
+
 				compute_h_vector(vars)
+
+				
+				return 1 # inertia is correct
 			catch e
 				println("ERROR in class_newton_solver.update_system")
 				throw(e)
@@ -241,11 +262,14 @@ type class_newton_solver
 				rhs[1:(qp.n)] = eta * r_D + xs ./ x;
 				rhs[(qp.n + 1):(qp.m + qp.n)] = eta * r_P;
 				#ls_solve!(this.K_factor, rhs, p, settings);
+				
+				GLOBAL_timer.start("Solve")
 				linear_system_solver.ls_solve!(rhs, p, settings);
+				GLOBAL_timer.stop("Solve")
 
-				v_tmp = [g' + x'/tau * qp.H qp.b'];
+				v_tmp = [g' + x'/tau * qp.H(vars) qp.b'];
 				numerator_dtau = eta*r_G + 1/tau * tk + (v_tmp * p)[1];
-				denominator_dtau = kappa/tau + (1/tau)^2 * (x' * qp.H * x)[1] + (v_tmp * h)[1];
+				denominator_dtau = kappa/tau + (1/tau)^2 * (x' * qp.H(vars) * x)[1] + (v_tmp * h)[1];
 				dtau = numerator_dtau/denominator_dtau;
 
 				dir = this.direction;

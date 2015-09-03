@@ -8,7 +8,7 @@ function simple_tests()
 
 	qp.n = 5;
 	qp.m = 2;
-	qp._H = spzeros(5,5);
+	qp.H = spzeros(5,5);
 	qp.A = spzeros(2, 5);
 	qp.A[1, 1:2] = 1;
 	qp.A[2, 3:5] = 1;

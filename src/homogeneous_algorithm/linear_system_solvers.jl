@@ -14,39 +14,70 @@ using MUMPS
 # i.e. see class_mumps_linear_system_solver
 #######################################################################
 
-abstract abstract_linear_system_solver
+
 
 # which system do we solve ? i.e. whole system or normal equations
 
 # solve whole system
 function construct_K(qp::class_quadratic_program, my_settings::class_settings)
-	return sparse([[qp.H qp.A']; [qp.A -settings.diagonal_modification*speye(qp.m,qp.m)]])
+	return sparse([[qp._H qp.A']; [qp.A -settings.diagonal_modification*speye(qp.m,qp.m)]])
 end
 
 function update_K!(K::SparseMatrixCSC{Float64,Int64}, vars::class_variables, qp::class_quadratic_program)
 	x = vars.x();
 	s = vars.s();
 
+	H = qp.H(vars);
 	for i = 1:(qp.n)
-		K[i,i] = qp.H[i,i] + s[i]/x[i];
+		K[i,i] = H[i,i] + s[i]/x[i];
 	end
 end
 
 # solve normal equations A'*A
-function construct_normal(qp::class_quadratic_program, my_settings::class_settings)
-	return spzeros(qp.n,qp.n);
+
+function form_normal_equations(vars::class_variables, qp::class_quadratic_program)
+	H = qp.H(vars);
+	diH = diag(H);
+	@assert( sum(diH .>  0) == length(nonzeros(H)) ) # check that nothing is on the diagonals of H
+
+	invH = spdiagm( 1./(diH + vars.s() ./ vars.x() ) );
+	
+	GLOBAL_timer.start("Schur complement")
+	normal_matrix = qp.A * invH * qp.A' + settings.diagonal_modification*speye(qp.m,qp.m);
+	GLOBAL_timer.stop("Schur complement")
+
+	return normal_matrix, invH;
 end
 
-function update_normal(vars::class_variables, qp::class_quadratic_program)
-	di = vars.s() ./ vars.x();
-	return qp.A' * spdiagm(di) * qp.A + settings.diagonal_modification*speye(qp.m,qp.m);
+function solve_normal(qp, dy, rhs, invH)
+	dx = invH*(rhs[1:qp.n] - qp.A' * dy);	
+	return dx;
 end
 
-#function solve_normal()
-# 	pi = ...
-#	x = ...
-#end
+# norm_rhs = normal_rhs(rhs,qp)
+# dy = factor \ norm_rhs
+# dx = solve_normal(dy, b) 
+# dx = H\ A'*
 
+#########################################
+# Linear solver options
+#########################################
+
+abstract abstract_linear_solver_options
+
+type standard_linear_solver_options <: abstract_linear_solver_options
+	sym::Int64
+	normal::Bool
+
+	function standard_linear_solver_options()
+		this = new();
+
+		this.sym = 0; # use LU factorization by default
+		this.normal = false;
+
+		return this;	
+	end
+end
 
 ##########################################################################
 # THE DIFFERENT LINEAR SOLVERS
@@ -56,6 +87,7 @@ end
 #### add any new linear solver here ...
 ####
 
+abstract abstract_linear_system_solver
 
 type linear_solver_MUMPS <: abstract_linear_system_solver
 	initialize::Function
@@ -67,25 +99,48 @@ type linear_solver_MUMPS <: abstract_linear_system_solver
 	factor::MUMPSfactorization{Float64}
 	
 	# options
-	sym::Int64 # 0, 1, 2
+	options::standard_linear_solver_options
+	
+	qp::class_quadratic_program
+	invH::SparseMatrixCSC{Float64,Int64}		
 
 	function linear_solver_MUMPS()
 		this = new();
-		this.sym = 0; # use LU factorization by default
-		
+		this.options = standard_linear_solver_options();
 
-		this.initialize = function(qp::class_quadratic_program, my_settings::class_settings)
-			this.SparseMatrix = construct_K(qp, my_settings);
+		this.initialize = function(qp::class_quadratic_program, my_settings::class_settings)	
+			this.qp = qp;		
+			if ~this.options.normal			
+				this.SparseMatrix = construct_K(qp, my_settings);
+			end
 		end
 
-		this.ls_factor = function(vars::class_variables,qp::class_quadratic_program)
-			update_K!(this.SparseMatrix, vars,  qp);
+		this.ls_factor = function(vars::class_variables, qp::class_quadratic_program)
+			if this.options.normal
+				this.SparseMatrix, this.invH = form_normal_equations(vars, qp);
+			else
+				update_K!(this.SparseMatrix, vars,  qp);
+			end
 			
-			this.factor = factorMUMPS(this.SparseMatrix, this.sym);
+			GLOBAL_timer.start("MUMP-factor")
+			@time this.factor = factorMUMPS(this.SparseMatrix, this.options.sym);
+			GLOBAL_timer.stop("MUMP-factor")
 		end
 		
 		this.ls_solve! = function(my_rhs::Array{Float64}, my_sol::Array{Float64}, my_settings::class_settings)
-			applyMUMPS!(this.factor, my_rhs, my_sol);
+			if this.options.normal
+				qp = this.qp;
+				normal_rhs = qp.A * this.invH * my_rhs[1:qp.n] - my_rhs[(1 + qp.n):(qp.m + qp.n)];
+				dy = my_sol[(qp.n + 1):(qp.n + qp.m)];
+
+				applyMUMPS!(this.factor, normal_rhs, dy);
+		
+				dx = solve_normal(qp, dy, my_rhs, this.invH);
+				my_sol[1:qp.n] = dx;
+				my_sol[(qp.n + 1):(qp.n + qp.m)] = dy;
+			else
+				applyMUMPS!(this.factor, my_rhs, my_sol);
+			end
 		end
 		
 		return this;
@@ -102,11 +157,12 @@ type linear_solver_julia <: abstract_linear_system_solver
 
 
 	# options
-	sym::Int64 # 0, 1, 2
+	options::abstract_linear_solver_options
 
 	function linear_solver_julia()
 		this = new();
-		this.sym = 0; # use LU factorization by default
+		this.options = standard_linear_solver_options()
+		this.options.sym = 0; # use LU factorization by default
 		
 		this.initialize = function(qp::class_quadratic_program, my_settings::class_settings)
 			this.SparseMatrix = construct_K(qp, my_settings);
@@ -114,8 +170,14 @@ type linear_solver_julia <: abstract_linear_system_solver
 
 		this.ls_factor = function(vars::class_variables,qp::class_quadratic_program)	
 			update_K!(this.SparseMatrix, vars, qp);
-
-			this.factor = lufact(this.SparseMatrix);
+			
+			if this.options.sym == 0
+				this.factor = lufact(this.SparseMatrix);
+			elseif this.options.sym == 1
+				this.factor = cholfact(this.SparseMatrix);
+			else
+				error("linear_solver_julia does not support options.sym =" * string(this.options.sym))
+			end
 		end
 		
 		this.ls_solve! = function(my_rhs::Array{Float64}, my_sol::Array{Float64}, my_settings::class_settings)
@@ -125,28 +187,5 @@ type linear_solver_julia <: abstract_linear_system_solver
 		return this;
 	end
 end
-
-
-##########################################################################
-### CODE THAT CALLS DIFFERENT LINEAR SOLVERS
-##########################################################################
-
-#function ls_factor(SparseMatrix::SparseMatrixCSC{Float64,Int64}, my_settings::class_settings)
-#	try
-#		my_settings.linear_system_solver.ls_factor(SparseMatrix, my_settings);
-#	catch e
-#		println("ERROR in ls_factor")
-#		throw(e)
-#	end
-#end
-
-#function ls_solve!(my_factor, my_rhs::Array{Float64}, my_sol::Array{Float64}, my_settings::class_settings)
-#	try
-#		my_settings.linear_system_solver.ls_solve!(my_factor, my_rhs, my_sol, my_settings);
-#	catch e
-#		println("ERROR in ls_factor")
-#		throw(e)
-#	end
-#end
 
 
