@@ -1,3 +1,7 @@
+#
+# test the linear program solver on a simple problem
+#
+
 include("homogeneous_algorithm.jl")
 
 #simple_tests();

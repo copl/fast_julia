@@ -217,6 +217,7 @@ type class_newton_solver
 				rhs[1:(qp.n)] = qp.g(vars) - qp.H(vars) * vars.x()/vars.tau();
 				rhs[(qp.n + 1):(qp.m + qp.n)] = -qp.b;
 
+				GLOBAL_timer::class_algorithm_timer
 				GLOBAL_timer.start("Solve")
 				linear_system_solver.ls_solve!(rhs, h, settings);
 				GLOBAL_timer.stop("Solve")
@@ -228,6 +229,7 @@ type class_newton_solver
 
 		this.update_system = function(vars::class_variables)
 			try
+				GLOBAL_timer::class_algorithm_timer
 				GLOBAL_timer.start("Factor")
 				linear_system_solver.ls_factor(vars, qp);
 				GLOBAL_timer.stop("Factor")
@@ -261,11 +263,11 @@ type class_newton_solver
 
 				rhs[1:(qp.n)] = eta * r_D + xs ./ x;
 				rhs[(qp.n + 1):(qp.m + qp.n)] = eta * r_P;
-				#ls_solve!(this.K_factor, rhs, p, settings);
 				
-				GLOBAL_timer.start("Factor")
+				GLOBAL_timer::class_algorithm_timer
+				GLOBAL_timer.start("Solve")
 				linear_system_solver.ls_solve!(rhs, p, settings);
-				GLOBAL_timer.start("Factor")
+				GLOBAL_timer.stop("Solve")
 
 				v_tmp = [g' + x'/tau * qp.H(vars) qp.b'];
 				numerator_dtau = eta*r_G + 1/tau * tk + (v_tmp * p)[1];
@@ -288,46 +290,4 @@ type class_newton_solver
 	end
 end
 
-function line_search(vars::class_variables, direction::class_variables)
-	vars = deepcopy(vars)
-	alpha_max = maximum_step(vars, direction);
-	alpha = min(1.0,0.995*alpha_max);	
-	vars.v += alpha*direction.v;
-	
-	vars.check_positive();
 
-	return vars, alpha
-end
-
-function maximum_step(vars::class_variables, direction::class_variables)
-	try
-		alpha = Inf;
-		alpha = maximum_step(alpha, vars.x(), direction.x());
-		alpha = maximum_step(alpha, vars.s(), direction.s());
-		alpha = maximum_step(alpha, vars.tau(), direction.tau());
-		alpha = maximum_step(alpha, vars.kappa(), direction.kappa());
-		
-		return alpha;
-	catch e
-		println("ERROR in maximum_step")
-		throw(e)
-	end
-end
-
-function maximum_step(alpha::Float64, array_point::Array{Float64}, array_direction::Array{Float64})
-	@assert(length(array_point) == length(array_direction))	
-	for i in 1:length(array_point)
-		alpha = maximum_step(alpha, array_point[i], array_direction[i]);
-	end
-	
-	return alpha
-end
-
-function maximum_step(alpha::Float64, var::Float64, dir::Float64)
-	candidate_alpha = -var/dir;
-	if candidate_alpha >= 0
-		alpha = min(alpha, candidate_alpha)
-	end
-
-	return alpha
-end

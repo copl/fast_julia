@@ -9,6 +9,8 @@ end
 
 include_print("homogeneous_settings.jl")
 include_print("homogeneous_core.jl")
+include_print("class_newton_solver.jl")
+include_print("line_search.jl")
 include_print("linear_system_solvers.jl")
 include_print("testing_tools.jl")
 println("starting code ...")
@@ -115,7 +117,7 @@ global GLOBAL_timer = class_algorithm_timer()
 # - update mpc_julia to exactly follow ipopt strategy
 #############################################################
 
-function inertia_correction(newton_solver, vars, qp)
+function inertia_correction(newton_solver::class_newton_solver, vars::class_variables, qp::class_quadratic_program)
 	j = 0;	
 	for j = 1:100
 		inertia = newton_solver.update_system(vars)
@@ -139,7 +141,7 @@ function inertia_correction(newton_solver, vars, qp)
 	end
 end
 
-function predictor_corrector(newton_solver, vars, residuals)
+function predictor_corrector(newton_solver::class_newton_solver, vars::class_variables, residuals::class_residuals)
 	# predictor
 	gamma = 0.0;
 	newton_solver.compute_direction(vars, residuals, gamma);
