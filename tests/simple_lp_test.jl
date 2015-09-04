@@ -1,0 +1,67 @@
+#
+# test the linear program solver on a simple problem
+#
+
+include("../src/homogeneous_algorithm/homogeneous_algorithm.jl")
+include_print("testing_tools.jl")
+
+#simple_tests();
+
+file_name = "Problems/QAP8.mat";
+
+A, b, c = get_netlib_problem(file_name);
+println("Solving ", file_name, " with the homogeneous algorithm")
+println(size(A,2), " variables and ", size(A,1), " constraints")
+println("Non-zeros: ", length(nonzeros(A)))
+settings = class_settings();
+
+
+println("=================== Linear system solver is julia LU (normal system) =============")
+settings.linear_system_solver = linear_solver_julia();
+settings.linear_system_solver.options.normal = true;
+settings.linear_system_solver.options.sym = 0;
+lp_test_homogeneous_algorithm(A, b, c, settings);
+
+println("=================== Linear system solver is julia LU factor =============")
+settings.linear_system_solver = linear_solver_julia();
+lp_test_homogeneous_algorithm(A, b, c, settings);
+
+println("=================== Linear system solver is MUMPS LU ====================")
+settings.linear_system_solver = linear_solver_MUMPS();
+settings.linear_system_solver.options.sym = 0;
+lp_test_homogeneous_algorithm(A, b, c, settings);
+
+println("=================== Linear system solver is MUMPS LDL ===================")
+settings.linear_system_solver = linear_solver_MUMPS();
+settings.linear_system_solver.options.sym = 2;
+lp_test_homogeneous_algorithm(A, b, c, settings);
+
+println("=================== Linear system solver is MUMPS chol (normal system) ==================")
+settings.linear_system_solver = linear_solver_MUMPS();
+settings.linear_system_solver.options.normal = true;
+settings.linear_system_solver.options.sym = 1;
+lp_test_homogeneous_algorithm(A, b, c, settings);
+
+println("=================== Linear system solver is matlab ldl ==================")
+settings.linear_system_solver = linear_solver_matlab();
+settings.linear_system_solver.options.normal = false;
+settings.linear_system_solver.options.sym = 2;
+lp_test_homogeneous_algorithm(A, b, c, settings);
+
+using Mosek
+println("=========================================================================")
+println("Calls Mosek")
+solve_with_JuMP(A, b, c, MosekSolver());
+
+using Ipopt
+println("=========================================================================")
+println("Calls IPOPT")
+solve_with_JuMP(A, b, c, IpoptSolver());
+
+
+
+
+
+
+
+

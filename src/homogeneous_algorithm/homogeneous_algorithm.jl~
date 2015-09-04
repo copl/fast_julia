@@ -141,7 +141,7 @@ function inertia_correction(newton_solver::class_newton_solver, vars::class_vari
 	end
 end
 
-function predictor_corrector(newton_solver::class_newton_solver, vars::class_variables, residuals)
+function predictor_corrector(newton_solver::class_newton_solver, vars::class_variables, residuals::class_residuals)
 	# predictor
 	gamma = 0.0;
 	newton_solver.compute_direction(vars, residuals, gamma);

@@ -12,7 +12,6 @@ include_print("homogeneous_core.jl")
 include_print("class_newton_solver.jl")
 include_print("line_search.jl")
 include_print("linear_system_solvers.jl")
-include_print("testing_tools.jl")
 println("starting code ...")
 
 function display_progress(itr::Int64, alpha::Float64, gamma::Float64, residuals::class_residuals, vars::class_variables, settings)
