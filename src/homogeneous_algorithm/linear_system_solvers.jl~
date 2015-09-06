@@ -88,7 +88,9 @@ function standard_ls_after_solve!(my_sol::Array{Float64}, temp_sol::Array{Float6
 	return my_sol
 end
 
+#########################
 # compute the inertia
+#########################
 
 function compute_inertia(diag_vec::Array{Float64}, num_vars::Int64, num_constraints::Int64)
 	try

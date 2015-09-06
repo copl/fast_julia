@@ -45,6 +45,18 @@ type class_quadratic_program
 
 		return this;
 	end
+
+	function class_quadratic_program(A::SparseMatrixCSC{Float64,Int64},b::Array{Float64,1},c::Array{Float64,1},Q::SparseMatrixCSC{Float64,Int64})
+		this = class_quadratic_program();
+
+		(this.m, this.n) = size(A)
+		this.A = A;
+		this._H = Q;
+		this.c = c;
+		this.b = b;
+
+		return this;
+	end
 end
 
 

@@ -24,7 +24,7 @@ type class_settings
 		this = new();
 	
 		# termination criteron
-		this.max_it = 100;
+		this.max_it = 200;
 
 		this.kappa_tau_tol = 1e-4
 		this.gap_tol = 1e-8;
@@ -36,8 +36,8 @@ type class_settings
 		this.dual_infeas_tol = 1e-6;
 
 		# algorithm parameters
-		this.diagonal_modification = 1e-8;
-		this.linear_system_solver = linear_solver_mumps();
+		this.diagonal_modification = 1e-6;
+		this.linear_system_solver = linear_solver_MUMPS();
 
 		return this
 	end

@@ -24,7 +24,7 @@ type class_settings
 		this = new();
 	
 		# termination criteron
-		this.max_it = 100;
+		this.max_it = 200;
 
 		this.kappa_tau_tol = 1e-4
 		this.gap_tol = 1e-8;

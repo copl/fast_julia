@@ -16,7 +16,7 @@ println("starting code ...")
 
 function display_progress(itr::Int64, alpha::Float64, gamma::Float64, residuals::class_residuals, vars::class_variables, settings)
 	try
-		@printf("%s %2.1e %2.1e %2.1e %2.1e %2.1e %2.1e %2.1e %2.1e %i\n", rpad(string(itr),3), alpha, gamma, vars.tau(), vars.kappa(), residuals.scaled_mu, residuals.r_G_norm_scaled, residuals.r_P_norm_scaled, residuals.r_D_norm_scaled, 2)
+		@printf("%s %2.1e %2.1e %2.1e %2.1e %2.1e %2.1e %2.1e %2.1e %i\n", rpad(string(itr),3), alpha, gamma, vars.tau(), vars.kappa(), residuals.scaled_mu, residuals.r_G_norm_scaled, residuals.r_P_norm_scaled, residuals.r_D_norm_scaled, 0)
 	catch e
 		println("ERROR in display_progress")
 		throw(e)
@@ -121,7 +121,7 @@ function inertia_correction(newton_solver::class_newton_solver, vars::class_vari
 	for j = 1:100
 		inertia = newton_solver.update_system(vars)
 		if inertia == 1
-			qp.delta = min(qp.delta/3, 1e-8);
+			qp.delta = max(qp.delta/3, 1e-8);
 			break
 		elseif inertia == 0
 			if qp.delta == 1e-8;
@@ -129,6 +129,7 @@ function inertia_correction(newton_solver::class_newton_solver, vars::class_vari
 			else
 				qp.delta = qp.delta*8;
 			end
+			println("Try delta = ", qp.delta)
 		elseif inertia == -1
 			error("numerical stability issues when computing KKT system !!!")
 		else
@@ -148,6 +149,14 @@ function predictor_corrector(newton_solver::class_newton_solver, vars::class_var
 	 
 	# corrector			
 	gamma = (predictor_vars.mu()/vars.mu())^3;	
+	newton_solver.compute_direction(vars, residuals, gamma);
+	vars, alpha = line_search(vars, newton_solver.direction);
+
+	return vars, alpha, gamma
+end
+
+function simple_gamma_strategy(newton_solver::class_newton_solver, vars::class_variables, residuals::class_residuals)
+	gamma = 0.5;	
 	newton_solver.compute_direction(vars, residuals, gamma);
 	vars, alpha = line_search(vars, newton_solver.direction);
 
@@ -174,12 +183,14 @@ function homogeneous_algorithm(qp::class_quadratic_program, vars::class_variable
 		println("It | alpha | gamma | tau  | kappa  |  mu  |  gap  | primal | dual | trial#")
 		display_progress(0,0.0,0.0,residuals,vars,settings);
 		
+		qp.delta = 1e-8;
 		for it = 1:settings.max_it
-			inertia_correction(newton_solver, vars, qp)
-			#newton_solver.update_system(vars)
+			#inertia_correction(newton_solver, vars, qp)
+			newton_solver.update_system(vars)
 			
 			vars, alpha, gamma = predictor_corrector(newton_solver, vars, residuals)
-			
+			#vars, alpha, gamma = simple_gamma_strategy(newton_solver, vars, residuals)
+
 			residuals.update(qp, vars);
 			display_progress(it, alpha, gamma, residuals, vars, settings);
 

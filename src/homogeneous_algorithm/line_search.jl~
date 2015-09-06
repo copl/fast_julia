@@ -1,4 +1,5 @@
 function line_search(vars::class_variables, direction::class_variables)
+	GLOBAL_timer::class_algorithm_timer
 	GLOBAL_timer.start("Line-search")
 		
 	vars = deepcopy(vars)

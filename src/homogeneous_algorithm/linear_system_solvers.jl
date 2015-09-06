@@ -293,7 +293,7 @@ type linear_solver_matlab <: abstract_linear_system_solver
 			@mput sparse_matrix
 			
 			@matlab begin
-				mat_L, mat_D, mat_P, mat_S = ldl(sparse_matrix,1e-7);
+				mat_L, mat_D, mat_P, mat_S = ldl(sparse_matrix,1e-6);
 			end
 
 			@mget mat_D

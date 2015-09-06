@@ -80,8 +80,6 @@ function tridiagonal(k,di,offdi)
 		Q[j,j] = di
 		Q[j+1,j] = offdi
 	end
-
-	return Q;
 end
 
 

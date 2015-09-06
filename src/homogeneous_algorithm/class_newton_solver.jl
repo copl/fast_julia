@@ -34,13 +34,12 @@ type class_newton_solver
 			try
 				GLOBAL_timer::class_algorithm_timer
 				GLOBAL_timer.start("Factor")
-				linear_system_solver.ls_factor(vars, qp);
+				inertia = linear_system_solver.ls_factor(vars, qp);
 				GLOBAL_timer.stop("Factor")
 
-				compute_h_vector(vars)
-
+				compute_h_vector(vars) # move ???
 				
-				return 1 # inertia is correct
+				return inertia # is inertia is correct?
 			catch e
 				println("ERROR in class_newton_solver.update_system")
 				throw(e)
