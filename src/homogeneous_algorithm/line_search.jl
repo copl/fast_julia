@@ -4,7 +4,7 @@ function line_search(vars::class_variables, direction::class_variables)
 		
 	vars = deepcopy(vars)
 	alpha_max = maximum_step(vars, direction);
-	alpha = min(1.0,0.9*alpha_max);	
+	alpha = 0.9*min(1.0,0.99*alpha_max);	
 	vars.v += alpha*direction.v;
 	
 	vars.check_positive();

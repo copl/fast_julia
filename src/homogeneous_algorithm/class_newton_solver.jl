@@ -4,16 +4,18 @@ type class_newton_solver
 	update_system::Function
 	compute_direction::Function
 
-	function class_newton_solver(qp::class_quadratic_program,settings::class_settings)
+	function class_newton_solver(qp::class_quadratic_program, settings::class_settings)
 		this = new();
 		
 		linear_system_solver = settings.linear_system_solver;
 		linear_system_solver.initialize(qp, settings);
-		
+
 		this.direction = class_variables(qp.n,qp.m);
 		rhs = zeros(qp.n + qp.m);
 		h = zeros(qp.n + qp.m);
 		p = zeros(qp.n + qp.m);
+
+		
 
 		function compute_h_vector(vars::class_variables)
 			try

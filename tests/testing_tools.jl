@@ -55,22 +55,24 @@ end
 
 
 using MAT
-function lp_test_homogeneous_algorithm(A::SparseMatrixCSC{Float64,Int64}, b::Array{Float64,1}, c::Array{Float64,1}, settings = class_settings())
-	qp = class_quadratic_program(A, b, c);
-
-	vars = class_variables(qp.n,qp.m);
-	
-	println(qp.n , " variables, ", qp.m, " constraints")
-	homogeneous_algorithm(qp, vars, settings)
+function test_homogeneous_algorithm(A::SparseMatrixCSC{Float64,Int64}, b::Array{Float64,1}, c::Array{Float64,1}, settings::class_settings)
+	return test_homogeneous_algorithm(A, b, c, spzeros(length(c),length(c)), settings);
 end
 
-function qp_test_homogeneous_algorithm(A::SparseMatrixCSC{Float64,Int64}, b::Array{Float64,1}, c::Array{Float64,1}, Q::SparseMatrixCSC{Float64,Int64}, settings = class_settings())
-	qp = class_quadratic_program(A, b, c, Q);
+function test_homogeneous_algorithm(A::SparseMatrixCSC{Float64,Int64}, b::Array{Float64,1}, c::Array{Float64,1}, Q::SparseMatrixCSC{Float64,Int64}, settings::class_settings)
+	try	
+		qp = class_quadratic_program(A, b, c, Q);
 
-	vars = class_variables(qp.n,qp.m);
-	
-	println(qp.n , " variables, ", qp.m, " constraints")
-	homogeneous_algorithm(qp, vars, settings)
+		vars = class_variables(qp.n,qp.m);
+		if settings.verbose
+			println(qp.n , " variables, ", qp.m, " constraints")
+		end
+		
+		return homogeneous_algorithm(qp, vars, settings)
+	catch e
+		println("ERROR in test_homogeneous_algorithm")
+		throw(e)
+	end
 end
 
 function tridiagonal(k,di,offdi)
@@ -118,3 +120,30 @@ function solve_with_JuMP(A::SparseMatrixCSC{Float64,Int64}, b::Array{Float64,1},
 		return 0
 	end
 end
+
+function trivial_test(A::SparseMatrixCSC{Float64,Int64}, b::Array{Float64,1}, c::Array{Float64,1}, correct_status::Int64, problem_name = "", verbose = false)
+	trivial_test(A, b, c, spzeros(length(c),length(c)), correct_status, problem_name, verbose)
+end
+
+function trivial_test(A::SparseMatrixCSC{Float64,Int64}, b::Array{Float64,1}, c::Array{Float64,1}, Q::SparseMatrixCSC{Float64,Int64}, correct_status::Int64, problem_name = "", verbose = false)
+	try
+		settings = class_settings()
+		
+		settings.linear_system_solver = linear_solver_matlab();
+		settings.linear_system_solver.options.normal = false;
+		settings.linear_system_solver.options.sym = 2;
+		settings.verbose = verbose;
+		
+		status , = test_homogeneous_algorithm(A, b, c, Q, settings);
+	
+		if status == correct_status
+			println("Problem ", problem_name, " solved successfully")
+		else
+			println("ERROR - Problem ", problem_name, " not solved sucessfully. Expected status ", correct_status, " got status ", status)
+		end
+	catch e
+		println("ERROR in trivial_test")
+		throw(e)
+	end
+end
+

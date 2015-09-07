@@ -14,9 +14,19 @@ include_print("line_search.jl")
 include_print("linear_system_solvers.jl")
 println("starting code ...")
 
-function display_progress(itr::Int64, alpha::Float64, gamma::Float64, residuals::class_residuals, vars::class_variables, settings)
+function print_if(statement::String, print_this::Bool)
+	if print_this
+		println(statement)
+	end
+end
+
+function display_progress(itr::Int64, alpha::Float64, gamma::Float64, residuals::class_residuals, vars::class_variables, settings::class_settings)
 	try
-		@printf("%s %2.1e %2.1e %2.1e %2.1e %2.1e %2.1e %2.1e %2.1e %i\n", rpad(string(itr),3), alpha, gamma, vars.tau(), vars.kappa(), residuals.scaled_mu, residuals.r_G_norm_scaled, residuals.r_P_norm_scaled, residuals.r_D_norm_scaled, 0)
+		output = @sprintf("%s %2.1e %2.1e %2.1e %2.1e %2.1e %2.1e %2.1e %2.1e %i\n", rpad(string(itr),3), alpha, gamma, vars.tau(), vars.kappa(), residuals.scaled_mu, residuals.r_G_norm_scaled, residuals.r_P_norm_scaled, residuals.r_D_norm_scaled, 0)
+
+		if settings.verbose
+			println(output)
+		end
 	catch e
 		println("ERROR in display_progress")
 		throw(e)
@@ -25,22 +35,29 @@ end
 
 
 
-function terminate_algorithm(vars::class_variables,residuals::class_residuals,settings::class_settings)
-	if residuals.scaled_mu < settings.gap_tol	
-		if vars.kappa()/vars.tau() < settings.kappa_tau_tol
-			if residuals.primal_norm < settings.primal_tol && residuals.dual_norm < settings.dual_tol
-				return 1;
-			end
-		elseif vars.tau()/vars.kappa() < settings.kappa_tau_tol
-			if residuals.primal_infeas_norm < settings.primal_infeas_tol
-				return 2;
-			elseif residuals.dual_infeas_norm < settings.dual_infeas_tol
-				return 3;
+function terminate_algorithm(vars::class_variables, residuals::class_residuals, settings::class_settings)
+	try
+		if residuals.scaled_mu < settings.gap_tol	
+			if vars.kappa()/vars.tau() < settings.kappa_tau_tol
+				if residuals.primal_norm < settings.primal_tol && residuals.dual_norm < settings.dual_tol
+					return 1;
+				end
+			elseif vars.tau()/vars.kappa() < settings.kappa_tau_tol
+				if residuals.primal_infeas_norm < settings.primal_infeas_tol
+					return 2;
+				elseif residuals.dual_infeas_norm < settings.dual_infeas_tol
+					return 3;
+				end
 			end
 		end
+
+		return 0
+	catch e
+		println("ERROR in terminate_algorithm")
+		throw(e)
 	end
 
-	return 0
+	
 end
 
 
@@ -117,76 +134,93 @@ global GLOBAL_timer = class_algorithm_timer()
 #############################################################
 
 function inertia_correction(newton_solver::class_newton_solver, vars::class_variables, qp::class_quadratic_program)
-	j = 0;	
-	for j = 1:100
-		inertia = newton_solver.update_system(vars)
-		if inertia == 1
-			qp.delta = max(qp.delta/3, 1e-8);
-			break
-		elseif inertia == 0
-			if qp.delta == 1e-8;
-				qp.delta = 1e-4;
+	try
+		j = 0;	
+		for j = 1:100
+			inertia = newton_solver.update_system(vars)
+			if inertia == 1
+				qp.delta = max(qp.delta/3, 1e-8);
+				break
+			elseif inertia == 0
+				if qp.delta == 1e-8;
+					qp.delta = 1e-4;
+				else
+					qp.delta = qp.delta*8;
+				end
+				println("Try delta = ", qp.delta)
+			elseif inertia == -1
+				error("numerical stability issues when computing KKT system !!!")
 			else
-				qp.delta = qp.delta*8;
+				error("inertia_corection")
 			end
-			println("Try delta = ", qp.delta)
-		elseif inertia == -1
-			error("numerical stability issues when computing KKT system !!!")
-		else
-			error("inertia_corection")
 		end
-	end
-	if j == 100
-		error("maximum iterations for inertia_corection reached")
+		if j == 100
+			error("maximum iterations for inertia_corection reached")
+		end
+	catch e
+		println("ERROR in inertia_correction")
+		throw(e)
 	end
 end
 
 function predictor_corrector(newton_solver::class_newton_solver, vars::class_variables, residuals::class_residuals)
-	# predictor
-	gamma = 0.0;
-	newton_solver.compute_direction(vars, residuals, gamma);
-	predictor_vars, = line_search(vars, newton_solver.direction);
-	 
-	# corrector			
-	gamma = (predictor_vars.mu()/vars.mu())^3;	
-	newton_solver.compute_direction(vars, residuals, gamma);
-	vars, alpha = line_search(vars, newton_solver.direction);
+	try
+		# predictor
+		gamma = 0.0;
+		newton_solver.compute_direction(vars, residuals, gamma);
+		predictor_vars, = line_search(vars, newton_solver.direction);
+		 
+		# corrector			
+		gamma = (predictor_vars.mu()/vars.mu())^3;	
+		newton_solver.compute_direction(vars, residuals, gamma);
+		vars, alpha = line_search(vars, newton_solver.direction);
 
-	return vars, alpha, gamma
+		return vars, alpha, gamma
+	catch e
+		println("ERROR in predictor_corrector")
+		throw(e)
+	end
 end
 
 function simple_gamma_strategy(newton_solver::class_newton_solver, vars::class_variables, residuals::class_residuals)
-	gamma = 0.5;	
-	newton_solver.compute_direction(vars, residuals, gamma);
-	vars, alpha = line_search(vars, newton_solver.direction);
+	try
+		gamma = 0.5;	
+		newton_solver.compute_direction(vars, residuals, gamma);
+		vars, alpha = line_search(vars, newton_solver.direction);
 
-	return vars, alpha, gamma
+		return vars, alpha, gamma
+	catch e
+		println("ERROR in simple_gamma_strategy")
+		throw(e)
+	end
 end
 
 function homogeneous_algorithm(qp::class_quadratic_program, vars::class_variables, settings::class_settings)
 	alpha = 0.0;
 	try	
+		GLOBAL_timer::class_algorithm_timer
 		GLOBAL_timer.reset();
 		GLOBAL_timer.start("Total")
 		GLOBAL_timer.start("Intial")
+		
 
 		status = 0;
 		
 		validate_dimensions(qp,vars)
-		newton_solver = class_newton_solver(qp,settings);
+		newton_solver = class_newton_solver(qp, settings);
 		residuals = class_residuals();
 		residuals.update(qp, vars);
 
 		GLOBAL_timer.stop("Intial")
 		 
 
-		println("It | alpha | gamma | tau  | kappa  |  mu  |  gap  | primal | dual | trial#")
+		print_if("It | alpha | gamma | tau  | kappa  |  mu  |  gap  | primal | dual | trial#", settings.verbose)
 		display_progress(0,0.0,0.0,residuals,vars,settings);
 		
 		qp.delta = 1e-8;
 		for it = 1:settings.max_it
-			#inertia_correction(newton_solver, vars, qp)
-			newton_solver.update_system(vars)
+			inertia_correction(newton_solver, vars, qp)
+			#newton_solver.update_system(vars)
 			
 			#vars, alpha, gamma = predictor_corrector(newton_solver, vars, residuals)
 			vars, alpha, gamma = simple_gamma_strategy(newton_solver, vars, residuals)
@@ -196,19 +230,23 @@ function homogeneous_algorithm(qp::class_quadratic_program, vars::class_variable
 
 			status = terminate_algorithm(vars,residuals,settings);
 			if status != 0
-				println("Termination criteron met")
-				println("status = ", status)
+				print_if("Termination criteron met", settings.verbose)
+				print_if("status = " * string(status), settings.verbose)
 				break
 			end
 		end
 
 		if status == 0
-			println("MAXIMUM ITERATIONS REACHED")
+			print_if("MAXIMUM ITERATIONS REACHED", settings.verbose)
 		end
 		
 		GLOBAL_timer.stop("Total")
 		
-		GLOBAL_timer.print_stats("Total");
+		if settings.verbose
+			GLOBAL_timer.print_stats("Total");
+		end
+
+		return status, vars
 	catch e
 		println("alpha = ", alpha)
 		println("ERROR in homogeneous_algorithm")

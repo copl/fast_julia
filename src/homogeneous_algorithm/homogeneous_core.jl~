@@ -19,6 +19,11 @@ type class_quadratic_program
 	function class_quadratic_program()
 		this = new();
 		
+		this.f = function(vars::class_variables)
+			x_scaled = vars.x()/vars.tau();
+			return (this.c'*x_scaled + 0.5*x_scaled'*this.H()*x_scaled)[1]
+		end
+
 		this.a = function(vars::class_variables)
 			return this.A*vars.x() - this.b;
 		end

@@ -15,10 +15,9 @@ type class_settings
 	
 	diagonal_modification::Float64
 	linear_system_solver::abstract_linear_system_solver
-	# options
-	# :solver_MUMPS_LDL
-	# :solver_MUMPS_LU
-	# :solver_julia	
+
+
+	verbose::Bool
 
 	function class_settings()
 		this = new();
@@ -29,15 +28,17 @@ type class_settings
 		this.kappa_tau_tol = 1e-4
 		this.gap_tol = 1e-8;
 
-		this.primal_tol = 1e-6;
-		this.dual_tol = 1e-6;		
+		this.primal_tol = 1e-8;
+		this.dual_tol = 1e-8;		
 				
-		this.primal_infeas_tol = 1e-6;
-		this.dual_infeas_tol = 1e-6;
+		this.primal_infeas_tol = 1e-8;
+		this.dual_infeas_tol = 1e-8;
 
 		# algorithm parameters
 		this.diagonal_modification = 1e-8;
 		this.linear_system_solver = linear_solver_MUMPS();
+
+		this.verbose = true;
 
 		return this
 	end

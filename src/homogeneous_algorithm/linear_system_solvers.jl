@@ -18,7 +18,7 @@ using MUMPS, MATLAB
 
 # solve whole system
 function construct_K(qp::class_quadratic_program, my_settings::class_settings)
-	return sparse([[qp._H qp.A']; [qp.A -settings.diagonal_modification*speye(qp.m,qp.m)]])
+	return sparse([[qp._H qp.A']; [qp.A -my_settings.diagonal_modification*speye(qp.m,qp.m)]])
 end
 
 function update_K!(K::SparseMatrixCSC{Float64,Int64}, vars::class_variables, qp::class_quadratic_program)

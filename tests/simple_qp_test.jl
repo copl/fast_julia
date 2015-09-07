@@ -11,7 +11,7 @@ file_name = "Problems/QAP8.mat";
 
 A, b, c = get_netlib_problem(file_name);
 #Q = -speye(length(c));
-Q = tridiagonal(length(c),0.0,1);
+Q = tridiagonal(length(c),4.0,1);
 println("Solving ", file_name, " with the homogeneous algorithm")
 println(size(A,2), " variables and ", size(A,1), " constraints")
 println("Non-zeros: ", length(nonzeros(A)))
