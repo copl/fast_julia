@@ -1,3 +1,5 @@
+EMPTY_ARRAY = spzeros(0,1)*[0.0];
+
 function simple_tests()
 	#################
 	# simple tests
@@ -13,7 +15,7 @@ function simple_tests()
 	qp.A[1, 1:2] = 1;
 	qp.A[2, 3:5] = 1;
 	qp.b = [1; 1];
-	qp.c = rand(5);
+	qp.q = rand(5);
 	
 	# settings
 	settings = class_settings();
@@ -121,28 +123,32 @@ function solve_with_JuMP(A::SparseMatrixCSC{Float64,Int64}, b::Array{Float64,1},
 	end
 end
 
-function trivial_test(A::SparseMatrixCSC{Float64,Int64}, b::Array{Float64,1}, c::Array{Float64,1}, correct_status::Int64, problem_name = "", verbose = false)
-	trivial_test(A, b, c, spzeros(length(c),length(c)), correct_status, problem_name, false)
+function trivial_test(A::SparseMatrixCSC{Float64,Int64}, b::Array{Float64,1}, c::Array{Float64,1}, correct_status::Int64, problem_name = "", settings::class_settings)
+	return trivial_test(A, b, c, spzeros(length(c),length(c)), correct_status, problem_name, settings)
 end
 
-function trivial_test(A::SparseMatrixCSC{Float64,Int64}, b::Array{Float64,1}, c::Array{Float64,1}, Q::SparseMatrixCSC{Float64,Int64}, correct_status::Int64, problem_name = "", verbose = false)
+function trivial_test(A::SparseMatrixCSC{Float64,Int64}, b::Array{Float64,1}, c::Array{Float64,1}, Q::SparseMatrixCSC{Float64,Int64}, correct_status::Int64, problem_name = "", settings::class_settings = class_settings(), verbose = false)
 	try
-		settings = class_settings()
 		
-		settings.linear_system_solver = linear_solver_matlab();
-		settings.linear_system_solver.options.normal = false;
-		settings.linear_system_solver.options.sym = 2;
+		
+		#settings.linear_system_solver = linear_solver_MATLAB();
+		#settings.linear_system_solver.options.sym = 0;
 		settings.verbose = verbose;
 		
-		status , = test_homogeneous_algorithm(A, b, c, Q, settings);
+		status, vars, iterations = test_homogeneous_algorithm(A, b, c, Q, settings);
 	
 		if status == correct_status
-			println("Problem ", problem_name, " solved successfully")
+			println("Problem ", problem_name, " solved successfully in ", iterations)
 		else
-			println("ERROR - Problem ", problem_name, " not solved sucessfully. Expected status ", correct_status, " got status ", status)
+			println("ERROR - Problem ", problem_name, " not solved sucessfully.")
+			println("Expected status ", correct_status, " got status ", status)
+			println("x_scaled = ", vars.x()/vars.tau())		
 		end
+
+		return status, vars
 	catch e
 		println("ERROR in trivial_test")
+		println("===================================")
 		throw(e)
 	end
 end

@@ -17,7 +17,7 @@ settings = class_settings();
 
 
 println("=================== Linear system solver is julia LU (normal system) =============")
-settings.linear_system_solver = linear_solver_JULIA();
+settings.linear_system_solver = linear_solver_MATLAB();
 settings.linear_system_solver.options.sym = 0;
 test_homogeneous_algorithm(A, b, c, settings);
 

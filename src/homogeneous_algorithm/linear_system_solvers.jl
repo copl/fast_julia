@@ -3,7 +3,7 @@ using MUMPS, MATLAB
 #### TO DO:
 #
 # - clean up normal equation stuff
-
+# new mumps interface https://github.com/dpo/MUMPS.jl/
 
 ######################################################################
 # Each instance of abstract_linear_system_solver should contain 
@@ -92,12 +92,13 @@ end
 # compute the inertia
 #########################
 
-function compute_inertia(diag_vec::Array{Float64}, num_vars::Int64, num_constraints::Int64)
+function inertia_status(pos_eigs::Int64, neg_eigs::Int64, zero_eigs::Int64, num_vars::Int64, num_constraints::Int64)
 	try
-		@assert(length(diag_vec) == num_vars + num_constraints)
-		pos_eigs = sum(diag_vec .> 0.0);
-		neg_eigs = sum(diag_vec .< 0.0);
-	
+		@assert(pos_eigs + neg_eigs + zero_eigs == num_vars + num_constraints)
+		
+
+		#println(pos_eigs, " ", neg_eigs);
+		
 		if pos_eigs == num_vars && neg_eigs == num_constraints
 			return true
 		elseif pos_eigs > num_vars || neg_eigs + pos_eigs != num_vars + num_constraints
@@ -131,14 +132,12 @@ abstract abstract_linear_solver_options
 
 type standard_linear_solver_options <: abstract_linear_solver_options
 	sym::Int64
-	normal::Bool
 
 	function standard_linear_solver_options()
 		this = new();
 
 		this.sym = 0; # use LU factorization by default
-		this.normal = false;
-
+		
 		return this;	
 	end
 end
@@ -163,27 +162,16 @@ type linear_solver_MUMPS <: abstract_linear_system_solver
 	
 	# options
 	options::standard_linear_solver_options
-	
-	qp::class_quadratic_program
-	invH::SparseMatrixCSC{Float64,Int64}		
 
 	function linear_solver_MUMPS()
 		this = new();
 		this.options = standard_linear_solver_options();
 		
-		
-		this.initialize = function(qp::class_quadratic_program, my_settings::class_settings)	
-			this.qp = qp;	
-			this.invH = speye(0);	
-			this.SparseMatrix = standard_ls_initialize(qp, my_settings, this.options.normal);
+		this.initialize = function(SparseMatrix::SparseMatrixCSC{Float64,Int64})
+			this.SparseMatrix = SparseMatrix;
 		end
 
-		this.ls_factor = function(vars::class_variables, qp::class_quadratic_program)
-			#if isdefined(this,:factor) 	
-			#	destroyMUMPS(this.factor);
-			#end
-			this.SparseMatrix, this.invH = standard_ls_before_factor!(this.SparseMatrix, vars, qp, this.options.normal);
-			
+		this.ls_factor = function(n::Int64, m::Int64)
 			GLOBAL_timer::class_algorithm_timer
 			GLOBAL_timer.start("Factor/MUMPs")
 			this.factor = factorMUMPS(this.SparseMatrix, this.options.sym);
@@ -192,51 +180,37 @@ type linear_solver_MUMPS <: abstract_linear_system_solver
 			return 1; # inertia
 		end
 		
-		this.ls_solve! = function(my_rhs::Array{Float64}, my_sol::Array{Float64}, qp::class_quadratic_program)
-			is_normal = this.options.normal;
-
-			temp_sol, temp_rhs = standard_ls_before_solve(my_sol, my_rhs, this.invH, this.qp, is_normal)
-
+		this.ls_solve! = function(my_rhs::Array{Float64}, my_sol::Array{Float64})
 			GLOBAL_timer::class_algorithm_timer
 			GLOBAL_timer.start("Solve/MUMPs")
-			applyMUMPS!(this.factor, temp_rhs, temp_sol);
+			applyMUMPS!(this.factor, my_rhs, my_sol);
 			GLOBAL_timer.stop("Solve/MUMPs")
-
-			standard_ls_after_solve!(my_sol, temp_sol, my_rhs, this.invH, this.qp, is_normal) 			
 		end
 		
 		return this;
 	end
 end
 
-type linear_solver_julia <: abstract_linear_system_solver
+type linear_solver_JULIA <: abstract_linear_system_solver
 	initialize::Function
 	ls_factor::Function
 	ls_solve!::Function
 
 	SparseMatrix::SparseMatrixCSC{Float64,Int64}	
 	factor
-
-
+	
 	# options
 	options::standard_linear_solver_options
 
-	qp::class_quadratic_program
-	invH::SparseMatrixCSC{Float64,Int64}
-
-	function linear_solver_julia()
+	function linear_solver_JULIA()
 		this = new();
-		this.options = standard_linear_solver_options()
-		this.options.sym = 0; # use LU factorization by default
+		this.options = standard_linear_solver_options();
 		
-		this.initialize = function(qp::class_quadratic_program, my_settings::class_settings)
-			this.invH = speye(0);
-			this.SparseMatrix = standard_ls_initialize(qp, my_settings, this.options.normal);
+		this.initialize = function(SparseMatrix::SparseMatrixCSC{Float64,Int64})
+			this.SparseMatrix = SparseMatrix;
 		end
 
-		this.ls_factor = function(vars::class_variables,qp::class_quadratic_program)	
-			this.SparseMatrix, this.invH = standard_ls_before_factor!(this.SparseMatrix, vars, qp, this.options.normal);
-			
+		this.ls_factor = function(n::Int64, m::Int64)
 			if this.options.sym == 0
 				this.factor = lufact(this.SparseMatrix)
 			elseif this.options.sym == 1
@@ -248,17 +222,11 @@ type linear_solver_julia <: abstract_linear_system_solver
 			return 1; # inertia
 		end
 		
-		this.ls_solve! = function(my_rhs::Array{Float64}, my_sol::Array{Float64}, qp::class_quadratic_program)
-			is_normal = this.options.normal;
-
-			temp_sol, temp_rhs = standard_ls_before_solve(my_sol, my_rhs, this.invH, qp, is_normal)
-
+		this.ls_solve! = function(my_rhs::Array{Float64}, my_sol::Array{Float64})
 			GLOBAL_timer::class_algorithm_timer
 			GLOBAL_timer.start("Solve/julia")
-			temp_sol[1:length(temp_sol)] = this.factor \ temp_rhs; #::UmfpackLU{Float64,Int64}
+			my_sol[1:length(my_sol)] = this.factor \ my_rhs; #::UmfpackLU{Float64,Int64}
 			GLOBAL_timer.stop("Solve/julia")
-
-			standard_ls_after_solve!(my_sol, temp_sol, my_rhs, this.invH, qp, is_normal) 
 		end
 		
 		return this;
@@ -266,7 +234,7 @@ type linear_solver_julia <: abstract_linear_system_solver
 end
 
 
-type linear_solver_matlab <: abstract_linear_system_solver
+type linear_solver_MATLAB <: abstract_linear_system_solver
 	initialize::Function
 	ls_factor::Function
 	ls_solve!::Function
@@ -277,31 +245,42 @@ type linear_solver_matlab <: abstract_linear_system_solver
 	# options
 	options::abstract_linear_solver_options
 
-	function linear_solver_matlab()
+	function linear_solver_MATLAB()
 		this = new();
 		this.options = standard_linear_solver_options()
 		this.options.sym = 0; # use LU factorization by default
-
-		this.initialize = function(qp::class_quadratic_program, my_settings::class_settings)
-			this.SparseMatrix = construct_K(qp, my_settings);
+		
+		# start matlab session
+		@matlab begin
+			
 		end
 
-		this.ls_factor = function(vars::class_variables, qp::class_quadratic_program)	
-			update_K!(this.SparseMatrix, vars, qp);
-			
+		this.initialize = function(SparseMatrix::SparseMatrixCSC{Float64,Int64})
+			this.SparseMatrix = SparseMatrix;
+		end
+
+		this.ls_factor = function(n::Int64, m::Int64)
 			sparse_matrix = this.SparseMatrix
 			@mput sparse_matrix
 			
 			@matlab begin
-				mat_L, mat_D, mat_P, mat_S = ldl(sparse_matrix,1e-6);
+				mat_L, mat_D, mat_P, mat_S = ldl(sparse_matrix,0.01);
+				
+				#s = size(mat_D,1)
+				#mat_S_inv = sparse(1:s,1:s,1 ./ diag(mat_S))
+				#Y = mat_S_inv * ( mat_P * ( mat_L ) );
+				#orginal = Y * (mat_D * Y');
+				#disp(full(sparse_matrix))
+				#disp(full(orginal))
 			end
 
 			@mget mat_D
 			
-			return compute_inertia(diag(mat_D), qp.n, qp.m)
+			pos_eigs, neg_eigs, zero_eigs = eigsigns_of_B(mat_D, 0.0);
+			return inertia_status(pos_eigs, neg_eigs, zero_eigs, n, m)
 		end
 		
-		this.ls_solve! = function(my_rhs::Array{Float64}, my_sol::Array{Float64}, qp::class_quadratic_program)
+		this.ls_solve! = function(my_rhs::Array{Float64}, my_sol::Array{Float64})
 			@mput my_rhs
 
 			@matlab begin

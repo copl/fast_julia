@@ -1,17 +1,22 @@
 function line_search(vars::class_variables, direction::class_variables)
-	GLOBAL_timer::class_algorithm_timer
-	GLOBAL_timer.start("Line-search")
+	try
+		GLOBAL_timer::class_algorithm_timer
+		GLOBAL_timer.start("Line-search")
 		
-	vars = deepcopy(vars)
-	alpha_max = maximum_step(vars, direction);
-	alpha = 0.9*min(1.0,0.99*alpha_max);	
-	vars.v += alpha*direction.v;
+		vars = deepcopy(vars)
+		alpha_max = maximum_step(vars, direction);
+		alpha = 0.7*min(1.0,0.9*alpha_max);	
+		vars.v += alpha*direction.v;
 	
-	vars.check_positive();
+		vars.check_positive();
 
-	GLOBAL_timer.stop("Line-search")
+		GLOBAL_timer.stop("Line-search")
 
-	return vars, alpha
+		return vars, alpha
+	catch e
+		println("ERROR in line_search")
+		throw(e)
+	end
 end
 
 function maximum_step(vars::class_variables, direction::class_variables)

@@ -6,20 +6,20 @@ include("../src/homogeneous_algorithm/homogeneous_algorithm.jl")
 include_print("testing_tools.jl")
 function trivial_lp()
 
-	trivial_test(sparse([1.0 1.0]), [1.0], [1.0, 1.0], 1, "LP-OPTIMAL-A")
+	trivial_test(sparse([1.0 1.0]), [1.0], [1.0, 1.0], 1, "LP-OPTIMAL-A",true)
 	trivial_test(sparse([1.0 -1.0]), [1.0], [1.0, 5.0], 1, "LP-OPTIMAL-B")
-	trivial_test(sparse([1.0 5.0]), [10.0], [1.0, -1.0], 1, "LP-OPTIMAL-C")
-	trivial_test(sparse([1.0 1.0]), [0.0], [1.0, -1.0], 1, "LP-OPTIMAL-D")
+	#trivial_test(sparse([1.0 5.0]), [10.0], [1.0, -1.0], 1, "LP-OPTIMAL-C")
+	#trivial_test(sparse([1.0 1.0]), [0.0], [1.0, -1.0], 1, "LP-OPTIMAL-D")
 	
 	trivial_test(sparse([1.0 1.0]), [-1.0], [1.0, 1.0], 2, "LP-INFEASIBLE-A")
 	trivial_test(sparse([1.0 5.0]), [-2.0], [-1.0, 1.0], 2, "LP-INFEASIBLE-B")
-	trivial_test(sparse([1.0 1.0]), [-5.0], [0.0, 0.0], 2, "LP-INFEASIBLE-C")
-	trivial_test(sparse([1.0 1.0]), [-0.001], [3.0, 1.0], 2, "LP-INFEASIBLE-D")
+	#trivial_test(sparse([1.0 1.0]), [-5.0], [0.0, 0.0], 2, "LP-INFEASIBLE-C")
+	#trivial_test(sparse([1.0 1.0]), [-0.001], [3.0, 1.0], 2, "LP-INFEASIBLE-D")
 	
-	trivial_test(sparse([1.0 -1.0]), [0.0], [-1.0, -1.0], 3, "LP-UNBOUNDED-A",true)
-	trivial_test(sparse([1.0 -5.0]), [0.0], [0.0, -1.0], 3, "LP-UNBOUNDED-B",true)
-	trivial_test(sparse([1.0 -3.0]), [1.0], [0.5, -2.0], 3, "LP-UNBOUNDED-C",true)
-	trivial_test(sparse([1.0 -1.0]), [0.0], [0.0, -0.01], 3, "LP-UNBOUNDED-D",true)
+	trivial_test(sparse([1.0 -1.0]), [0.0], [-1.0, -1.0], 3, "LP-UNBOUNDED-A")
+	trivial_test(sparse([1.0 -5.0]), [0.0], [0.0, -1.0], 3, "LP-UNBOUNDED-B")
+	#trivial_test(sparse([1.0 -3.0]), [1.0], [0.5, -2.0], 3, "LP-UNBOUNDED-C")
+	#trivial_test(sparse([1.0 -1.0]), [0.0], [0.0, -0.01], 3, "LP-UNBOUNDED-D")
 end
 
 

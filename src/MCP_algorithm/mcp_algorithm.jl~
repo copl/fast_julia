@@ -1,0 +1,134 @@
+#function mcp_algorithm()
+#
+#end
+
+
+
+
+#function solve_newton_system(D_phi, r, x, y, s, mu, eta, gamma)
+#	
+#end
+
+type class_qp
+	h
+	H
+	A
+	b
+	function class_qp()
+		this = new();	
+		return this;
+	end
+end
+
+
+type hsd_system
+	D_phi	
+	phi
+	update::Function
+	
+
+	function hsd_system(qp)
+		this = new();
+		
+
+		n = length(qp.h);
+		
+		this.update = function(equal_vars, pos_vars)
+			
+			tau = pos_vars[n + 1];
+			x = pos_vars[1:n];
+			x_scaled = x/tau;
+			y = equal_vars;
+
+			SIGMA = 0.0;
+			DELTA = 0.0;
+
+			c = qp.h + qp.H * x_scaled;
+			g = c - qp.A' * y / tau;
+			a = (qp.A * x_scaled - qp.b);
+
+			phi_P = -tau * a; 
+			phi_D = -tau * g;
+			phi_G = x' * g + y' * a;
+
+			this.phi = [phi_P; phi_D; phi_G];
+		
+			H = qp.H + speye(n)*DELTA;
+			v_1 = -c - H * x_scaled;
+			v_2 = c - H * x_scaled;
+			v_3 = a - qp.A * x_scaled;
+
+			H_g = x_scaled' * H * x_scaled;
+			SIGMA = maximum([SIGMA,-H_g + 5.0])
+		
+			m = length(y);
+			this.D_phi = sparse( [  [ spzeros(m,m) qp.A v_3 ]; [ -qp.A' H + SIGMA*speye(n) v_2 ]; [ -v_3' v_1' H_g + SIGMA ]; ] );
+
+			#this.D_phi += 3*spdiagm(zeros(m); ones(n+1))
+		end
+
+		return this;
+	end
+
+end
+
+
+
+m = 1;
+n = 3;
+
+qp = class_qp();
+qp.h = [-2; 1];
+qp.H = -speye(n - 1, n - 1);
+qp.A = [1 -1];
+qp.b = ones(m);
+
+
+y = zeros(m);
+x = ones(n) + rand(n);
+s = ones(n);
+
+gamma = 0.5;
+eta = 1 - gamma;
+K = None;
+hsd = hsd_system(qp);
+for i = 1:20
+	hsd.update(y, x);
+	phi = hsd.phi;
+	D_phi = hsd.D_phi;
+
+	mu = (x'*s / n)[1];
+
+	r = [zeros(m); s] + phi;
+
+	K = D_phi + spdiagm( [zeros(m); s ./ x] );
+	println(eigmin(full(K)))
+	rhs = eta*r + [zeros(m); gamma * mu ./ x - s];
+
+	fac = lufact(K);
+	direction = fac \ rhs;
+	dy = direction[1:m];
+	dx = direction[(m+1):(n+m)];
+	ds = -s .* dx ./ x + (gamma * mu ./ x - s);
+
+	nora = 1.0/maximum([1.0, -dx./x, -ds./s]);
+	println(nora)
+	alpha = 0.7*nora;
+	
+	
+
+	
+	x = x + alpha*dx;
+	y = y + alpha*dy;
+	s = s + alpha*ds;
+
+	@assert(all(x .> 0))
+	@assert(all(s .> 0))
+end
+
+
+println(x)
+println(y)
+println(s)
+
+full(K)

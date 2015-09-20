@@ -17,6 +17,7 @@ type class_residuals
 	r_G_norm_scaled::Float64
 	r_P_norm_scaled::Float64
 
+	mu::Float64
 	scaled_mu::Float64
 
 	primal_norm::Float64
@@ -32,8 +33,10 @@ type class_residuals
 	function class_residuals()
 		this = new();
 		
-		this.update = function(qp::class_quadratic_program, vars::class_variables)
+		this.update = function(qp::class_quadratic_program, vars::class_variables, newton_solver::abstract_newton_solver)
 			try 
+				this.mu = newton_solver.mu(vars);
+	
 				x_scaled = vars.x()/vars.tau();
 				
 				this.a = qp.A * x_scaled - qp.b;				
@@ -57,7 +60,7 @@ type class_residuals
 				this.r_G_norm_scaled = norm(this.r_G,1)/scale;
 				this.r_P_norm_scaled = norm(this.r_P,1)/scale;
 
-				this.scaled_mu = vars.mu()/(vars.kappa() + vars.tau());
+				this.scaled_mu = this.mu/(vars.kappa() + vars.tau());
 				
 				this.primal_norm = norm(this.r_P,1)/vars.tau();
 				this.dual_norm = norm(this.r_D,1)/vars.tau();
@@ -86,11 +89,14 @@ end
 
 abstract abstract_newton_solver
 
+
+# DELETE THIS IT IS OLD !!!
 type class_newton_solver <: abstract_newton_solver
 	direction::class_variables
 	
 	update_system::Function
 	compute_direction::Function
+	maximum_delta_decrease::Function
 
 	function class_newton_solver(qp::class_quadratic_program, settings::class_settings)
 		this = new();
@@ -190,42 +196,64 @@ end
 
 ################################################################################################################
 
-type class_newton_solver2 <: abstract_newton_solver
+type class_newton_hsd <: abstract_newton_solver
 	delta::Float64
 	direction::class_variables
 	residuals::class_residuals
+	
 	update_system::Function
 	compute_direction::Function
+	intialize::Function
 
-	K_true # temp
+	minimum_delta::Function
+	mu::Function
+	
+	K::SparseMatrixCSC{Float64,Int64}
+	K_true::SparseMatrixCSC{Float64,Int64} # temp
 
-	function class_newton_solver2(qp::class_quadratic_program, vars::class_variables, settings::class_settings)
+	linear_system_solver::abstract_linear_system_solver
+
+	function class_newton_hsd()
 		this = new();
+	
+		this.mu = function(vars::class_variables)
+			return ( ( vars.x()' * vars.s() + vars.tau() * vars.kappa() ) / (vars.n() + 1) )[1]
+		end	
 		
-		dim = qp.n + qp.m + 1;
-		K = spzeros(dim, dim);
+		this.minimum_delta = function(qp::class_quadratic_program, cur_delta::Float64)
+			lambda, eigen_vector = eig_min!(this.linear_system_solver, this.K, randn(qp.n + 1), qp.n + 1, qp.m, 1e-6);
+			return (lambda - cur_delta), eigen_vector
+		end	
 
-		this.direction = class_variables(qp.n,qp.m);
-		rhs = zeros(qp.n + qp.m);
-		h = zeros(qp.n + qp.m);
-		p = zeros(qp.n + qp.m);
 
-		linear_system_solver = settings.linear_system_solver;
-		linear_system_solver.initialize(K);
+		this.intialize = function(qp::class_quadratic_program, vars::class_variables, settings::class_settings)
+			try
+				dim = qp.n + qp.m + 1;
+				this.K = spzeros(dim, dim);
 
-		this.residuals = class_residuals();
-		this.residuals.update(qp, vars);
+				this.direction = class_variables(qp.n,qp.m);
+			
+				this.linear_system_solver = settings.linear_system_solver;
+				this.linear_system_solver.initialize(this.K);
 
-		this.delta = 0.0;
+				this.residuals = class_residuals();
+				this.residuals.update(qp, vars, this);
 
-		this.update_system = function(vars::class_variables)
+				this.delta = 0.0;
+			catch e
+				println("ERROR in class_newton_solver.intialize")
+				throw(e)
+			end
+		end
+
+		this.update_system = function(vars::class_variables, qp::class_quadratic_program)
 			try
 				res = this.residuals;
 				x_scaled = vars.x() / vars.tau();
-				res.H += this.delta * speye(length(x_scaled))
-				D_x = res.H + spdiagm( vars.s() ./ vars.x() ) #+ this.delta * speye(length(x_scaled));
-				D_g = x_scaled' * res.H * x_scaled + vars.kappa() / vars.tau() #+ this.delta;				
-				D_z = 1e-6 * speye(qp.m,qp.m);
+				#res.H += this.delta * speye(length(x_scaled))
+				D_x = res.H + spdiagm( vars.s() ./ vars.x() ) + this.delta * speye(length(x_scaled));
+				D_g = x_scaled' * res.H * x_scaled + vars.kappa() / vars.tau() + this.delta;				
+				D_z = 0.1 * speye(qp.m,qp.m);
 				v_1 = -res.c - res.H * x_scaled;
 				v_2 = res.c - res.H * x_scaled;
 				v_3 = res.a - qp.A * x_scaled;
@@ -236,17 +264,17 @@ type class_newton_solver2 <: abstract_newton_solver
 					[ qp.A 	v_3	 D_z	] 
 					];
 
-				K[:,:] = [ 
+				this.K[:,:] = [ 
 					[ D_x  		res.h 	 qp.A' 	]; 
 					[ res.h'	D_g 	 v_3' 	];  
 					[ qp.A 		v_3	 -D_z	] 
 					];
 
-				println(full(K))
+				#println(full(this.K))
 
 				GLOBAL_timer::class_algorithm_timer
 				GLOBAL_timer.start("Factor")
-				inertia = linear_system_solver.ls_factor(qp.n + 1, qp.m);
+				inertia = this.linear_system_solver.ls_factor(qp.n + 1, qp.m);
 				GLOBAL_timer.stop("Factor")
 				
 				return inertia
@@ -256,10 +284,10 @@ type class_newton_solver2 <: abstract_newton_solver
 			end
 		end
 		
-		this.compute_direction = function(vars::class_variables, gamma::Float64, eta::Float64)
+		this.compute_direction = function(vars::class_variables, qp::class_quadratic_program, gamma::Float64, eta::Float64)
 			try
 				res = this.residuals;
-				mu = vars.mu();
+				mu = res.mu;
 				
 				xs = -vars.x() .* vars.s() + gamma * mu * ones(qp.n);
 				tk = -vars.tau() * vars.kappa() + gamma * mu;
@@ -271,7 +299,8 @@ type class_newton_solver2 <: abstract_newton_solver
 
 				sol = ones(qp.n + qp.m + 1);
 				#linear_system_solver.ls_solve!(rhs,sol);
-				sol = this.K_true \ rhs;
+				fac = lufact(this.K_true)
+				sol = fac \ rhs;
 				
 				dir = this.direction;
 				dir.v[dir.x_ind] = sol[1:qp.n];
@@ -299,49 +328,66 @@ end
 ################################################################################################################
 
 
-type class_ipopt_newton <: abstract_newton_solver
+type class_newton_ip <: abstract_newton_solver
 	delta::Float64
 	direction::class_variables
 	residuals::class_residuals
+	K::SparseMatrixCSC{Float64,Int64}
+
+	intialize::Function
 	update_system::Function
 	compute_direction::Function
+	
+	minimum_delta::Function
+	mu::Function
 
-	K_true # temp
+	linear_system_solver::abstract_linear_system_solver
 
-	function class_ipopt_newton(qp::class_quadratic_program, vars::class_variables, settings::class_settings)
+
+	function class_newton_ip()
 		this = new();
 		
-		this.intialize = function(qp::class_quadratic_program, vars::class_variables, settings::class_settings)
-			vars.ipopt_start(); # set tau = 1, kappa = 0
-		
-			dim = qp.n + qp.m;
-			K = spzeros(dim, dim);
-
-			this.direction = class_variables(qp.n,qp.m);
-			rhs = zeros(qp.n + qp.m);
-			h = zeros(qp.n + qp.m);
-			p = zeros(qp.n + qp.m);
-
-			linear_system_solver = settings.linear_system_solver;
-			linear_system_solver.initialize(K);
-
-			this.residuals = class_residuals();
-			this.residuals.update(qp, vars);
-
-			this.delta = 0.0;
+		this.mu = function(vars::class_variables)
+			return (  vars.x()' * vars.s() / vars.n()  )[1]	
 		end
-		
-		this.intialize(qp,vars,settings);
 
-		this.update_system = function(vars::class_variables)
+		this.minimum_delta = function(qp::class_quadratic_program, cur_delta::Float64)
+			lambda, eigen_vector = eig_min!(this.linear_system_solver, this.K, randn(qp.n), qp.n, qp.m, 1e-6);
+			println("lambda = ", lambda)
+			return (lambda - cur_delta), eigen_vector
+		end
+
+		this.intialize = function(qp::class_quadratic_program, vars::class_variables, settings::class_settings)
+			try		
+				vars.ipopt_start(); # set tau = 1, kappa = 0
+		
+				dim = qp.n + qp.m;
+				this.K = spzeros(dim, dim);
+
+				this.direction = class_variables(qp.n,qp.m);
+
+				this.linear_system_solver = settings.linear_system_solver;
+				this.linear_system_solver.initialize(this.K);
+
+				this.residuals = class_residuals();
+				this.residuals.update(qp, vars, this);
+
+				this.delta = 0.0;
+			catch e
+				println("ERROR in class_newton_solver.intialize")
+				throw(e)
+			end
+		end
+
+		this.update_system = function(vars::class_variables, qp::class_quadratic_program)
 			try
 				res = this.residuals;
 				x_scaled = vars.x() / vars.tau();
 				res.H += this.delta * speye(length(x_scaled))
 				D_x = res.H + spdiagm( vars.s() ./ vars.x() )
-				D_z = 1e-6 * speye(qp.m,qp.m);
+				D_z = 0.1 * speye(qp.m,qp.m);
 
-				K[:,:] = [ 
+				this.K[:,:] = [ 
 					[ D_x  		qp.A' 	]; 
 					[ qp.A 		-D_z	] 
 					];
@@ -349,7 +395,7 @@ type class_ipopt_newton <: abstract_newton_solver
 
 				GLOBAL_timer::class_algorithm_timer
 				GLOBAL_timer.start("Factor")
-				inertia = linear_system_solver.ls_factor(qp.n, qp.m);
+				inertia = this.linear_system_solver.ls_factor(qp.n, qp.m);
 				GLOBAL_timer.stop("Factor")
 				
 				return inertia
@@ -359,10 +405,10 @@ type class_ipopt_newton <: abstract_newton_solver
 			end
 		end
 		
-		this.compute_direction = function(vars::class_variables, gamma::Float64, eta::Float64)
+		this.compute_direction = function(vars::class_variables, qp::class_quadratic_program, gamma::Float64, eta::Float64)
 			try
 				res = this.residuals;
-				mu = vars.mu();
+				mu = res.mu;
 				
 				xs = -vars.x() .* vars.s() + gamma * mu * ones(qp.n);
 				tk = -vars.tau() * vars.kappa() + gamma * mu;
@@ -372,7 +418,7 @@ type class_ipopt_newton <: abstract_newton_solver
 					eta * res.r_P ];
 
 				sol = ones(qp.n + qp.m);
-				linear_system_solver.ls_solve!(rhs,sol);
+				this.linear_system_solver.ls_solve!(rhs,sol);
 				#sol = this.K_true \ rhs;
 				
 				dir = this.direction;
