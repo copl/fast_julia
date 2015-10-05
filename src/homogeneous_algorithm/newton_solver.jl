@@ -13,6 +13,10 @@ type class_residuals
 	r_D::Array{Float64,1}
 	r_P::Array{Float64,1}
 
+	r_D_norm::Float64
+	r_G_norm::Float64
+	r_P_norm::Float64
+
 	r_D_norm_scaled::Float64
 	r_G_norm_scaled::Float64
 	r_P_norm_scaled::Float64
@@ -53,12 +57,16 @@ type class_residuals
 				this.r_G = (vars.kappa() + g' * vars.x() + this.a' * vars.y())[1]; 
 				this.r_P = - vars.tau() * this.a;
 
+				this.r_D_norm = norm(this.r_D,1);
+				this.r_G_norm = abs(this.r_G);
+				this.r_P_norm = norm(this.r_P,1);
+
 
 				# other stuff
 				scale = vars.kappa() + vars.tau();
-				this.r_D_norm_scaled = norm(this.r_D,1)/scale;
-				this.r_G_norm_scaled = norm(this.r_G,1)/scale;
-				this.r_P_norm_scaled = norm(this.r_P,1)/scale;
+				this.r_D_norm_scaled = this.r_D_norm/scale;
+				this.r_G_norm_scaled = this.r_G_norm/scale;
+				this.r_P_norm_scaled = this.r_P_norm/scale;
 
 				this.scaled_mu = this.mu/(vars.kappa() + vars.tau());
 				
@@ -148,7 +156,7 @@ type class_newton_hsd <: abstract_newton_solver
 			end
 		end
 
-		this.update_system = function(vars::class_variables, qp::class_quadratic_program)
+		this.update_system = function(vars::class_variables, qp::class_quadratic_program, settings::class_settings)
 			try
 				res = this.residuals;
 				x_scaled = vars.x() / vars.tau();
@@ -286,13 +294,13 @@ type class_newton_ip <: abstract_newton_solver
 			end
 		end
 
-		this.update_system = function(vars::class_variables, qp::class_quadratic_program)
+		this.update_system = function(vars::class_variables, qp::class_quadratic_program, settings::class_settings)
 			try
 				res = this.residuals;
 				x_scaled = vars.x() / vars.tau();
 				res.H += this.delta * speye(length(x_scaled))
 				D_x = res.H + spdiagm( vars.s() ./ vars.x() )
-				D_z = settings.diagonal_modification * speye(qp.m,qp.m);
+				D_z = settings.diagonal_modification * speye(qp.m, qp.m);
 
 				this.K[:,:] = [ 
 					[ D_x  		qp.A' 	]; 

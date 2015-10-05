@@ -11,7 +11,7 @@ using Ipopt
 # 59
 #
 function main()
-	file_list = ["Problems/AFIRO.mat", "Problems/BANDM.mat", "Problems/BEACONFD.mat", "Problems/BLEND.mat", "Problems/BOEING2.mat", "Problems/BRANDY.mat", "Problems/CAPRI.mat", "Problems/BORED_3D.mat", "Problems/STANDGUB.mat"];
+	file_list = ["Problems/AFIRO.mat", "Problems/BANDM.mat", "Problems/BEACONFD.mat", "Problems/BLEND.mat", "Problems/BOEING2.mat", "Problems/BRANDY.mat", "Problems/CAPRI.mat", "Problems/BRANDY.mat", "Problems/STANDGUB.mat"];
 	for file_name in file_list
 		A, b, c = get_netlib_problem(file_name);
 		#Q = -speye(length(c));

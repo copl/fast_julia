@@ -138,7 +138,7 @@ function trivial_test(A::SparseMatrixCSC{Float64,Int64}, b::Array{Float64,1}, c:
 		status, vars, iterations = test_homogeneous_algorithm(A, b, c, Q, settings);
 	
 		if status == correct_status
-			println("Problem ", problem_name, " solved successfully in ", iterations, " iterations")
+			println("Problem ", problem_name, " solved successfully in ", iterations " iterations")
 		else
 			println("ERROR - Problem ", problem_name, " not solved sucessfully.")
 			println("Expected status ", correct_status, " got status ", status)

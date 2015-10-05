@@ -1,4 +1,10 @@
 
+#############################################################
+# TO DO:
+# - allow the solving of normal equations
+# - replace object methods with functions
+#############################################################
+
 
 
 function include_print(filename::String)
@@ -24,9 +30,9 @@ function print_if(statement::String, print_this::Bool)
 	end
 end
 
-function display_progress(itr::Int64, alpha::Float64, gamma::Float64, residuals::class_residuals, vars::class_variables, direction::class_variables, delta::Float64, num_trials::Int64, settings::class_settings)
+function display_progress(itr::Int64, alpha::Float64, gamma::Float64, residuals::class_residuals, vars::class_variables, direction::class_variables, delta::Float64, ls_num_trials::Int64, num_facs::Int64, settings::class_settings)
 	try
-		output = @sprintf("%s %2.1e %2.1e | %2.1e %2.1e | %2.1e %2.1e %2.1e %2.1e %2.1e | %2.1e %2.1e %s \n", rpad(string(itr),3), alpha, gamma, vars.tau(), vars.kappa(), residuals.scaled_mu, residuals.r_G_norm_scaled, residuals.r_P_norm_scaled, residuals.r_D_norm_scaled, residuals.func_val, delta, alpha * norm(direction.v,1), rpad(string(num_trials),2) )
+		output = @sprintf("%s %2.1e %2.1e | %2.1e %2.1e | %2.1e %2.1e %2.1e %2.1e %2.1e | %2.1e %2.1e %s %s \n", rpad(string(itr),3), alpha, gamma, vars.tau(), vars.kappa(), residuals.scaled_mu, residuals.r_G_norm_scaled, residuals.r_P_norm_scaled, residuals.r_D_norm_scaled, residuals.func_val, delta, alpha * norm(direction.v,1), rpad(string(ls_num_trials),2), rpad(string(num_facs),2) )
 
 		if settings.verbose
 			print(output)
@@ -69,14 +75,6 @@ function terminate_algorithm(vars::class_variables, residuals::class_residuals, 
 	
 end
 
-
-#############################################################
-# TO DO:
-# - update solvers to allow inertia input
-# - allow the solving of normal equations
-# - put strategies into seperate file
-#############################################################
-
 function homogeneous_algorithm(qp::class_quadratic_program, vars::class_variables, settings::class_settings)
 	alpha = 0.0;
 	try	
@@ -98,20 +96,21 @@ function homogeneous_algorithm(qp::class_quadratic_program, vars::class_variable
 		it = 0;
 		gamma = 0.0;
 		num_trials = 0;
+		total_factorizations = 0;
 
-		print_if("It | alpha | gamma  || tau   | kappa  ||  mu  |  gap  | primal | dual | f(x/tau) || delta norm(d) trial#", settings.verbose)
-		display_progress(it, alpha, gamma, newton_solver.residuals, vars, newton_solver.direction, newton_solver.delta, num_trials, settings);
+		print_if("It | alpha | gamma  || tau   | kappa  ||  mu  |  gap  | primal | dual | f(x/tau)|| delta norm(d) ls# del#", settings.verbose)
+		display_progress(it, alpha, gamma, newton_solver.residuals, vars, newton_solver.direction, newton_solver.delta, num_trials, 0, settings);
 		
 		for it = 1:settings.max_it
-			used_delta = inertia_correction(newton_solver, vars, qp, settings)
+			used_delta, num_facs = ipopt_style_inertia_correction(newton_solver, vars, qp, settings)
+			total_factorizations += num_facs;
 			#used_delta = newton_solver.update_system(vars)
 			
-			#vars, alpha, gamma = predictor_corrector(newton_solver, vars, qp)
-			vars, alpha, gamma = simple_gamma_strategy(newton_solver, vars, qp)
+			vars, alpha, gamma = hybrid_mu_strategy(newton_solver, vars, qp, settings, used_delta)
 			
 			newton_solver.residuals.update(qp, vars, newton_solver);
 			
-			display_progress(it, alpha, gamma, newton_solver.residuals, vars, newton_solver.direction, used_delta, num_trials, settings);
+			display_progress(it, alpha, gamma, newton_solver.residuals, vars, newton_solver.direction, used_delta, num_trials, num_facs, settings);
 
 			status = terminate_algorithm(vars, newton_solver.residuals, settings);
 			if status != 0
@@ -131,7 +130,9 @@ function homogeneous_algorithm(qp::class_quadratic_program, vars::class_variable
 			GLOBAL_timer.print_stats("Total");
 		end
 
-		return status, vars, it
+		println("Total factorizations: ", total_factorizations)
+
+		return status, vars, it, total_factorizations
 	catch e
 		println("alpha = ", alpha)
 		println("ERROR in homogeneous_algorithm")
