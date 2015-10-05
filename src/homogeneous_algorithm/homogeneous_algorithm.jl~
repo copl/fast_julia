@@ -1,5 +1,5 @@
-# to do:
-# check primal & dual termination criteron
+
+
 
 function include_print(filename::String)
 	include(filename)
@@ -14,6 +14,8 @@ include_print("line_search.jl")
 include_print("linear_system_solvers.jl")
 include_print("eigenvalues.jl")
 include_print("timer.jl")
+include_print("mu_strategies.jl")
+include_print("delta_strategies.jl")
 println("starting code ...")
 
 function print_if(statement::String, print_this::Bool)
@@ -24,7 +26,7 @@ end
 
 function display_progress(itr::Int64, alpha::Float64, gamma::Float64, residuals::class_residuals, vars::class_variables, direction::class_variables, delta::Float64, num_trials::Int64, settings::class_settings)
 	try
-		output = @sprintf("%s %2.1e %2.1e | %2.1e %2.1e | %2.1e %2.1e %2.1e %2.1e %2.1e | %2.1e %2.1e %s \n", rpad(string(itr),3), alpha, gamma, vars.tau(), vars.kappa(), residuals.scaled_mu, residuals.r_G_norm_scaled, residuals.r_P_norm_scaled, residuals.r_D_norm_scaled, residuals.func_val, delta, norm(direction.v,1), rpad(string(num_trials),2) )
+		output = @sprintf("%s %2.1e %2.1e | %2.1e %2.1e | %2.1e %2.1e %2.1e %2.1e %2.1e | %2.1e %2.1e %s \n", rpad(string(itr),3), alpha, gamma, vars.tau(), vars.kappa(), residuals.scaled_mu, residuals.r_G_norm_scaled, residuals.r_P_norm_scaled, residuals.r_D_norm_scaled, residuals.func_val, delta, alpha * norm(direction.v,1), rpad(string(num_trials),2) )
 
 		if settings.verbose
 			print(output)
@@ -71,100 +73,9 @@ end
 #############################################################
 # TO DO:
 # - update solvers to allow inertia input
-# - add normal equations solving option
+# - allow the solving of normal equations
 # - put strategies into seperate file
 #############################################################
-
-
-#############################################################
-# DIFFERENT STRATEGIES
-##############################################################
-
-function inertia_correction(newton_solver::abstract_newton_solver, vars::class_variables, qp::class_quadratic_program, settings::class_settings)
-	try
-
-		MAX_IT = 50;
-		j = 0;	
-		used_delta = 0.0;
-
-		newton_solver.delta = max(newton_solver.delta, settings.delta_min );
-		
-		for j = 1:MAX_IT
-			inertia = newton_solver.update_system(vars, qp)
-			
-			if inertia == 1
-				used_delta = newton_solver.delta;
-				
-				smallest_delta, eigen_vector = newton_solver.minimum_delta(qp, newton_solver.delta);
-				#println(smallest_delta)
-				#println(full(newton_solver.K))
-				#suggested_delta = min(1.000,newton_solver.delta * 0.999) #0.5*newton_solver.delta + 0.5*smallest_delta;
-
-				newton_solver.delta = newton_solver.delta * settings.delta_decrease;
-				#newton_solver.delta = max(suggested_delta, settings.delta_min)
-				break
-			elseif inertia == 0
-				println(full(newton_solver.K))
-				
-				if newton_solver.delta <= settings.delta_min;
-					newton_solver.delta = settings.delta_start;
-				else
-					newton_solver.delta = newton_solver.delta * settings.delta_increase;
-				end
-			elseif inertia == -1
-				error("numerical stability issues when computing KKT system !!!")
-			else
-				error("inertia_corection")
-			end
-		end
-		
-		if j == MAX_IT
-			error("maximum iterations for inertia_corection reached")
-		else
-			return used_delta
-		end
-
-		
-	catch e
-		println("ERROR in inertia_correction")
-		throw(e)
-	end
-end
-
-function predictor_corrector(newton_solver::abstract_newton_solver, vars::class_variables, qp::class_quadratic_program)
-	try
-		# predictor
-		gamma = 0.0;
-		newton_solver.compute_direction(vars, qp, gamma, 1 - gamma);
-		predictor_vars, = line_search(vars, newton_solver.direction);
-
-		intial_mu = newton_solver.mu(vars);
-		predictor_mu = newton_solver.mu(predictor_vars);
-		 
-		# corrector			
-		gamma = (predictor_mu/intial_mu)^3;	
-		newton_solver.compute_direction(vars, qp, gamma, 1 - gamma);
-		vars, alpha = line_search(vars, newton_solver.direction);
-
-		return vars, alpha, gamma
-	catch e
-		println("ERROR in predictor_corrector")
-		throw(e)
-	end
-end
-
-function simple_gamma_strategy(newton_solver::abstract_newton_solver, vars::class_variables, qp::class_quadratic_program)
-	try
-		gamma = 0.9;	
-		newton_solver.compute_direction(vars, qp, gamma, 1.0);
-		vars, alpha = line_search(vars, newton_solver.direction);
-
-		return vars, alpha, gamma
-	catch e
-		println("ERROR in simple_gamma_strategy")
-		throw(e)
-	end
-end
 
 function homogeneous_algorithm(qp::class_quadratic_program, vars::class_variables, settings::class_settings)
 	alpha = 0.0;

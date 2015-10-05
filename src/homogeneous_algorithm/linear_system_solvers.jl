@@ -264,7 +264,7 @@ type linear_solver_MATLAB <: abstract_linear_system_solver
 			@mput sparse_matrix
 			
 			@matlab begin
-				mat_L, mat_D, mat_P, mat_S = ldl(sparse_matrix,0.01);
+				mat_L, mat_D, mat_P, mat_S = ldl(sparse_matrix,0.5);
 				
 				#s = size(mat_D,1)
 				#mat_S_inv = sparse(1:s,1:s,1 ./ diag(mat_S))

@@ -100,11 +100,12 @@ type class_variables
 		this.kappa_ind = 2*n + m + 2;		
 
 		# intialize
+		intial_val = 1.0;
 		this.v = zeros(2*(n+1)+m);
-		this.v[this.x_ind] = 1.0;
-		this.v[this.s_ind] = 1.0;
-		this.v[this.tau_ind] = 1.0;
-		this.v[this.kappa_ind] = 1.0;
+		this.v[this.x_ind] = intial_val;
+		this.v[this.s_ind] = intial_val;
+		this.v[this.tau_ind] = intial_val;
+		this.v[this.kappa_ind] = intial_val;
 
 		this.x_scaled = function()
 			return this.x()/this.tau();

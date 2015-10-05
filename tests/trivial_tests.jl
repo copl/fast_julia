@@ -21,7 +21,7 @@ function trivial_lp(settings::class_settings)
 	trivial_test(spzeros(0,1), EMPTY_ARRAY, [-1.0], 3, "LP-UNBOUNDED-A", settings);
 	trivial_test(sparse([1.0 -5.0]), [0.0], [0.0, -1.0], 3, "LP-UNBOUNDED-B", settings);
 	trivial_test(sparse([1.0 -3.0]), [1.0], [0.5, -2.0], 3, "LP-UNBOUNDED-C", settings);
-	trivial_test(sparse([1.0 -1.0]), [0.0], [0.0, -0.01], 3, "LP-UNBOUNDED-D", settings);
+	trivial_test(sparse([1.0 -1.0]), [1.0], [0.0, -0.01], 3, "LP-UNBOUNDED-D", settings);
 end
 
 
@@ -53,10 +53,11 @@ function trivial_ncqp(settings::class_settings)
 	Q2 = sparse(ones(2,2));
 	Q3 = sparse([ [0.0 1.0]; [1.0 0.0] ]);
 	
+	
+	# trivial_test(A, b, c, Q,  correct_status, problem_name, verbose)
 	if false
-		# trivial_test(A, b, c, Q,  correct_status, problem_name, verbose)
 		trivial_test(sparse([1.0 1.0]), [1.0], [1.0, 1.0], speye(2), 1, "NCQP-OPTIMAL-A", settings);
-		trivial_test(sparse([1.0 -1.0]), [0.0], [-1.0, -1.0], Q3, 1, "NCQP-OPTIMAL-B", settings);
+		trivial_test(sparse([1.0 1.0]), [1.0], [-1.0, -1.0], Q3, 1, "NCQP-OPTIMAL-B", settings);
 		trivial_test(sparse([1.0 -3.0]), [1.0], [0.5, -2.0], Q2, 1, "NCQP-OPTIMAL-C", settings);
 		trivial_test(sparse([1.0 1.0]), [0.0], [1.0, -1.0], Q1, 1, "NCQP-OPTIMAL-D", settings);
 
@@ -65,28 +66,32 @@ function trivial_ncqp(settings::class_settings)
 		trivial_test(sparse([1.0 3.0]), [-1.0], [0.5, -2.0], Q2, 2, "NCQP-INFEASIBLE-C", settings);
 		trivial_test(sparse([1.0 1.0]), [-0.0001], [1.0, -1.0], Q1, 2, "NCQP-INFEASIBLE-D", settings);
 
-	
+
 		trivial_test(sparse([0.0 0.0]), [0.0], [0.0, -1.0], Q3, 3, "NCQP-UNBOUNDED-A", settings);
 		trivial_test(sparse([1.0 0.0]), [5.0], [0.0, -1.0], Q3, 3, "NCQP-UNBOUNDED-B", settings);
 		trivial_test(sparse([1.0 -1.0]), [1.0], [0.5, -2.0], Q1, 3, "NCQP-UNBOUNDED-C", settings);
 	end
+	trivial_test(sparse([1.0 -1.0]), [1.0], [0.0, -0.01], Q1, 3, "NCQP-UNBOUNDED-D", settings, true);
 
-	# problem is almost symetric !!!
-	status, vars = trivial_test(sparse([1.0 -1.0]), [0.0], [0.0, -0.01], Q1, 3, "NCQP-UNBOUNDED-D", settings, true);
-
-	println("x = ", vars.x());
 end
 
 
 settings = class_settings();
+
+settings.newton_solver = class_newton_hsd();
+trivial_ncqp(settings);
+
 settings.newton_solver = class_newton_ip();
 trivial_ncqp(settings);
+
+
+
+
+
 
 #trivial_lp(settings);
 #trivial_qp(settings);
 
-settings.newton_solver = class_newton_hsd();
-trivial_ncqp(settings);
 
 
 
