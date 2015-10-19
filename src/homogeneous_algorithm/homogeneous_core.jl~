@@ -100,7 +100,7 @@ type class_variables
 		this.kappa_ind = 2*n + m + 2;		
 
 		# intialize
-		intial_val = 1e10;
+		intial_val = 1.0;
 		this.v = zeros(2*(n+1)+m);
 		this.v[this.x_ind] = intial_val;
 		this.v[this.s_ind] = intial_val;

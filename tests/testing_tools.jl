@@ -1,49 +1,5 @@
 EMPTY_ARRAY = spzeros(0,1)*[0.0];
 
-function simple_tests()
-	#################
-	# simple tests
-	#################
-
-	# quadratic program
-	qp = class_quadratic_program();
-
-	qp.n = 5;
-	qp.m = 2;
-	qp._H = spzeros(5,5);
-	qp.A = spzeros(2, 5);
-	qp.A[1, 1:2] = 1;
-	qp.A[2, 3:5] = 1;
-	qp.b = [1; 1];
-	qp.q = rand(5);
-	
-	# settings
-	settings = class_settings();
-
-	# variables
-	vars = class_variables(5, 2);
-	vars.check_positive();
-
-	# qp and vars
-	validate_dimensions(qp, vars);
-
-	# residuals
-	res = class_residuals();
-	res.update(qp, vars);
-
-	# newton_solver
-	newton_solver = class_newton_solver(qp, settings);
-	newton_solver.update_system(vars);
-	newton_solver.compute_direction(vars,res,0.5);
-	
-	# maximum step
-	println("0.5 = ", maximum_step(1.0, 1.0, -2.0))
-
-	# solver
-	homogeneous_algorithm(qp, vars, settings)
-end
-
-
 function get_netlib_problem(file_name::String)
 	file = matopen(file_name)
 	A= sparse(read(file, "A"))

@@ -1,7 +1,3 @@
-# TO DO:
-# implement upper and lower bounds
-# normalize
-
 type class_quadratic_program
 	n::Int64 # number of variables
 	m::Int64 # number of constraints
