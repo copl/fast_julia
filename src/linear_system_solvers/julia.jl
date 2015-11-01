@@ -10,10 +10,6 @@ type linear_solver_JULIA <: abstract_linear_system_solver
   end
 end
 
-function initialize(solver::linear_solver_JULIA, SparseMatrix::SparseMatrixCSC{Float64,Int64})
-		solver._SparseMatrix = SparseMatrix;
-end
-
 function ls_factor(solver::linear_solver_JULIA, n::Int64, m::Int64)
 			if solver.sym == 0
 				 solver._factor = lufact(solver._SparseMatrix);

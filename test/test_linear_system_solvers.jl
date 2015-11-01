@@ -1,10 +1,9 @@
-include("../src/linear_system_solvers/linear_system_solvers.jl")
 
 # test linear system solvers
 
 function test_linear_solver(solver::abstract_linear_system_solver)
    mat = speye(10);
-   initialize(solver,mat);
+   initialize!(solver,mat);
 
    mat[1,1] = 2;
    @test solver._SparseMatrix == mat
@@ -31,4 +30,11 @@ begin
   ls_solver_julia = linear_solver_JULIA();
   ls_solver_julia.sym = 1;
   test_linear_solver( ls_solver_julia )
+end
+
+# test matlab ldl solver
+begin
+  ls_solver_matlab = linear_solver_MATLAB();
+  ls_solver_matlab.sym = 0;
+  test_linear_solver( ls_solver_matlab )
 end

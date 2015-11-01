@@ -42,44 +42,73 @@ function x(vars::class_variables)
     return vars._v[vars._x_ind]
 end
 
+function x(vars::class_variables, new_vals::Array{Float64})
+    return vars._v[vars._x_ind] = new_vals;
+end
+
 function y(vars::class_variables)
     return vars._v[vars._y_ind]
+end
+
+function y(vars::class_variables, new_vals::Array{Float64})
+    return vars._v[vars._y_ind] = new_vals;
 end
 
 function s(vars::class_variables)
     return vars._v[vars._s_ind]
 end
 
+function s(vars::class_variables, new_vals::Array{Float64})
+    return vars._v[vars._s_ind] = new_vals;
+end
+
 function tau(vars::class_variables)
     return vars._v[vars._tau_ind]
+end
+
+function tau(vars::class_variables, new_vals::Float64)
+    return vars._v[vars._tau_ind] = new_vals;
 end
 
 function kappa(vars::class_variables)
     return vars._v[vars._kappa_ind]
 end
 
+function kappa(vars::class_variables, new_vals::Float64)
+    return vars._v[vars._kappa_ind] = new_vals;
+end
+
 function x_scaled(vars::class_variables)
      return x(vars)/tau(vars)
 end
 
+function y_scaled(vars::class_variables)
+     return y(vars)/tau(vars)
+end
+
 function n(vars::class_variables)
-    return length(this._x_ind)
+    return length(vars._x_ind)
 end
 
 function m(vars::class_variables)
-    return length(this._y_ind)
+    return length(vars._y_ind)
 end
 
 # point = point + alpha * direction
 function move!(vars::class_variables, alpha::Float64, direction::class_variables)
-    vars._v = vars._v + alpha * direction._v;
-    check_positive(vars);
+    try
+      vars._v = vars._v + alpha * direction._v;
+      check_positive(vars);
+    catch e
+        println("ERROR class_variables/move!")
+        throw(e)
+    end
 end
 
-function ipopt_start()
-	 this.v[this.tau_ind] = 1.0;
-	 this.v[this.kappa_ind] = 1e-20;
-end
+#function ipopt_start()
+#	 this.v[this.tau_ind] = 1.0;
+#	 this.v[this.kappa_ind] = 1e-20;
+#end
 
 # check for errors
 
@@ -125,15 +154,15 @@ function check_for_wrong_vals(vars::class_variables)
 
           # check for NaNs
           for x_i in x(vars)
-            @assert(isnan(x_i))
+            @assert(!isnan(x_i))
           end
 
           for s_i in s(vars)
-            @assert(isnan(s_i))
+            @assert(!isnan(s_i))
           end
 
-          @assert(isnan(tau(vars)))
-          @assert(isnan(kappa(vars)))
+          @assert(!isnan(tau(vars)))
+          @assert(!isnan(kappa(vars)))
       catch e
           println("ERROR in check_for_wrong_vals")
           throw(e)

@@ -27,18 +27,22 @@ type class_quadratic_program <: internal_AbstractNLPEvaluator
 	end
 end
 
+################
+# METHODS
+################
+
 # evaluate objective
-function internal_eval_f(qp::class_quadratic_program, x::Array{Float64,1})
+function internal_eval_c(qp::class_quadratic_program, x::Array{Float64,1})
     return dot(qp._c, x) + 0.5 * dot(x, qp._Q * x);
 end
 
 # evalutate constraints
-function internal_eval_g(qp::class_quadratic_program, x::Array{Float64,1})
+function internal_eval_a(qp::class_quadratic_program, x::Array{Float64,1})
     return qp._A * x - qp._b;
 end
 
 # evaluate gradient of constraints
-function internal_eval_jac_g(qp::class_quadratic_program, x::Array{Float64,1}) # J
+function internal_eval_jac_a(qp::class_quadratic_program, x::Array{Float64,1}) # J
     return qp._A;
 end
 
@@ -48,10 +52,24 @@ function internal_eval_hesslag_prod(qp::class_quadratic_program, x::Array{Float6
 end
 
 # gradient of lagrangian
-function internal_eval_gradlag(qp::class_quadratic_program, x::Array{Float64,1}, y::Array{Float64,1}) # \nabla L
-    return qp._c + qp._Q * x + qp._A' * y;
+function internal_eval_gradlag(qp::class_quadratic_program, x::Array{Float64,1}, y::Array{Float64,1})
+    return qp._c + qp._Q * x - qp._A' * y;
 end
 
+# gradient of f
+function internal_eval_gradc(qp::class_quadratic_program, x::Array{Float64,1})
+    return qp._c + qp._Q * x;
+end
 
-###############
-# tests
+# (\nabla g * x - g)
+function internal_eval_b(qp::class_quadratic_program, x::Array{Float64,1})
+    return qp._b;
+end
+
+function n(qp::class_quadratic_program)
+    return qp._n;
+end
+
+function m(qp::class_quadratic_program)
+    return qp._m;
+end
