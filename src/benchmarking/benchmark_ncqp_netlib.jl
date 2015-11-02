@@ -1,12 +1,7 @@
 #
 # test the linear program solver on a simple problem
 #
-
-
-
-include("../src/homogeneous_algorithm/homogeneous_algorithm.jl")
-include_print("benchmarking_tools.jl")
-using Ipopt
+using Ipopt, KNITRO
 #simple_tests();
 
 # 54
@@ -14,8 +9,8 @@ using Ipopt
 #
 
 function test_problem(name::String)
-	file_name = "Problems/" * name * ".mat";
-	A, b, c = get_netlib_problem(file_name);
+	file_name = name * ".mat";
+	A, b, c = get_netlib_problem("/home/oliver/Documents/Programming_Projects/fast_julia/src/benchmarking/Problems", file_name);
 	#Q = -speye(length(c));
 	Q = tridiagonal(length(c),0.0,1.0);
 	#Q = spzeros(length(c),length(c));
@@ -26,9 +21,8 @@ function test_problem(name::String)
 
 	println("=================== Linear system solver is matlab ldl ==================")
 	settings.linear_system_solver = linear_solver_MATLAB();
-	settings.linear_system_solver.options.sym = 2;
 
-	settings.newton_solver = class_newton_hsd();
+	settings.newton_solver = class_homogeneous_newton();
 	trivial_test(A, b, c, Q, 1, file_name, settings, true);
 
 	#settings.newton_solver = class_newton_ip();
@@ -36,12 +30,5 @@ function test_problem(name::String)
 
 	println("=========================================================================")
 	println("Calls IPOPT")
-	solve_with_JuMP(A, b, c, Q, IpoptSolver(max_iter=1000));
+	solve_with_JuMP(A, b, c, Q, IpoptSolver(max_iter=10,print_level=3));
 end
-
-#file_list = ["Problems/AFIRO.mat", "Problems/BANDM.mat", "Problems/BEACONFD.mat", "Problems/BLEND.mat", "Problems/BOEING2.mat", "Problems/BRANDY.mat", "Problems/CAPRI.mat", "Problems/BORED_3D.mat", "Problems/STANDGUB.mat"];
-
-#main();
-println("For example, type: test_problem(\"BORE3D\")")
-
-

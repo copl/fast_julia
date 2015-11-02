@@ -1,8 +1,6 @@
-include("benchmark_ncqp_netlib.jl")
+include("src/loadcode.jl");
 
-using my_advanced_timer
-
-test_timer = advanced_timer();
+test_problem("BORE3D")
 
 
 

@@ -12,7 +12,7 @@ function get_netlib_problem(file_name::String)
 end
 
 using MATLAB
-function get_netlib_problem2(dir::String, file_name::String)
+function get_netlib_problem(dir::String, file_name::String)
   @mput dir file_name
 	@matlab begin
     cd(dir)
@@ -31,9 +31,9 @@ function test_homogeneous_algorithm(A::SparseMatrixCSC{Float64,Int64}, b::Array{
 	try
 		qp = class_quadratic_program(A, b, c, Q);
 
-		vars = class_variables(qp.n,qp.m);
+		vars = class_variables(n(qp),m(qp));
 		if settings.verbose
-			println(qp.n , " variables, ", qp.m, " constraints")
+			println(n(qp) , " variables, ", m(qp) , " constraints")
 		end
 
 		return homogeneous_algorithm(qp, vars, settings)

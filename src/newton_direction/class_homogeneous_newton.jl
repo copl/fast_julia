@@ -64,7 +64,7 @@ function update_newton!(newt::class_homogeneous_newton, vars::class_variables, s
       newt.K_true = [
         [ D_x  	v_2 	-A' 	];
         [ v_1' 	D_g 	b' 	];
-        [ A 	 -b	   D_z	]
+        [ A 	 -b	    D_z	]
         ];
 
       newt.K[:,:] = [

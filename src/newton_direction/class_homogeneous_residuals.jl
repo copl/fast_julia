@@ -14,6 +14,8 @@ type class_homogeneous_residuals <: abstract_residuals
 	mu::Float64
 	scaled_mu::Float64
 
+  val_c::Float64
+
 	primal_norm::Float64
 	dual_norm::Float64
 
@@ -35,6 +37,7 @@ function update_residuals!(res::class_homogeneous_residuals, nlp_eval::internal_
 
 
 				res.mu = mu(newt,vars);
+        res.val_c = nlp_vals.val_c
 
 				val_x_scaled = x_scaled(vars);
         val_s = s(vars);

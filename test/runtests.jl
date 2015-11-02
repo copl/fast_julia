@@ -20,8 +20,6 @@ begin
       # test class_variables
       ###############################
       begin
-
-
         var = class_variables(3,3);
 
         x_values = [-1, 2, 2];
@@ -134,10 +132,12 @@ begin
             vars = class_variables(3,1);
             A = sparse(ones(1,3));
             b = 3*ones(1);
-            c = ones(3);
+            c = [2.0, 0.0, 1.0];
             qp = class_quadratic_program(A, b, c);
             status, vars = homogeneous_algorithm(qp, vars, settings)
-            println(x(vars)/tau(vars))
+            @test isapprox(x_scaled(vars),[0.0,3.0,0.0])
+            @test tau(vars) > 0.1
+            @test 0.0 < kappa(vars) && kappa(vars) < 1e-6
         end
 
 
@@ -145,6 +145,5 @@ begin
   end
   runtests();
 end
-
 
 

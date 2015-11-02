@@ -17,7 +17,7 @@ end
 function display_progress(itr::Int64, alpha::Float64, gamma::Float64, residuals::class_homogeneous_residuals, vars::class_variables, direction::class_variables, delta::Float64, ls_num_trials::Int64, num_facs::Int64, settings::class_settings)
 	try
 		output = @sprintf("%s %2.1e %2.1e | %2.1e %2.1e | %2.1e %2.1e %2.1e %2.1e %2.1e | %2.1e %2.1e %s %s \n",
-                      rpad(string(itr),3), alpha, gamma, tau(vars), kappa(vars), residuals.scaled_mu, residuals.r_G_norm, residuals.r_P_norm, residuals.r_D_norm, 0.0, delta, alpha * norm(direction._v,1), rpad(string(ls_num_trials),2), rpad(string(num_facs),2) )
+                      rpad(string(itr),3), alpha, gamma, tau(vars), kappa(vars), residuals.scaled_mu, residuals.r_G_norm, residuals.r_P_norm, residuals.r_D_norm, residuals.val_c, delta, alpha * norm(direction._v,1), rpad(string(ls_num_trials),2), rpad(string(num_facs),2) )
 
 		if settings.verbose
 			print(output)
@@ -63,10 +63,9 @@ end
 function homogeneous_algorithm(qp::class_quadratic_program, vars::class_variables, settings::class_settings)
 	alpha = 0.0;
 	try
-		#GLOBAL_timer::class_algorithm_timer
-		#GLOBAL_timer.reset();
-		#GLOBAL_timer.start("Total")
-		#GLOBAL_timer.start("Intial")
+    reset_advanced_timer()
+    start_advanced_timer();
+		start_advanced_timer("Intial");
 
 		status = 0;
 
@@ -76,8 +75,7 @@ function homogeneous_algorithm(qp::class_quadratic_program, vars::class_variable
 
     initialize_newton!(newton_solver, qp, vars, settings);
 
-
-		#GLOBAL_timer.stop("Intial")
+    pause_advanced_timer("Intial");
 
 		it = 0;
 		gamma = 0.0;
@@ -88,12 +86,8 @@ function homogeneous_algorithm(qp::class_quadratic_program, vars::class_variable
 		display_progress(it, alpha, gamma, newton_solver.residuals, vars, newton_solver.direction, newton_solver.delta, num_trials, 0, settings);
 
 		for it = 1:settings.max_it
-			#update_newton!(newton_solver, vars, settings);
-      #used_delta = 0.0;
-      #num_facs = 1;
       used_delta, num_facs = ipopt_style_inertia_correction!(newton_solver, vars, settings)
 			total_factorizations += num_facs;
-			#used_delta = newton_solver.update_system(vars)
 
       #vars, alpha, gamma = simple_gamma_strategy(newton_solver, vars, settings)
 			vars, alpha, gamma = hybrid_mu_strategy(newton_solver, vars, settings, used_delta)
@@ -107,19 +101,16 @@ function homogeneous_algorithm(qp::class_quadratic_program, vars::class_variable
 				print_if("status = " * string(status), settings.verbose)
 				break
 			end
-
-
 		end
 
 		if status == 0
 			print_if("MAXIMUM ITERATIONS REACHED", settings.verbose)
 		end
 
-		#GLOBAL_timer.stop("Total")
-
-		#if settings.verbose
-		#	GLOBAL_timer.print_stats("Total");
-		#end
+		pause_advanced_timer();
+		if settings.verbose
+		    print_timer_stats()
+		end
 
 		println("Total factorizations: ", total_factorizations)
 
